@@ -54,7 +54,20 @@
     font-size: 13px; color: #111; cursor: pointer; padding: 0; width: 100%; font-family: inherit;
   }
  
-  /* DROP AREA */
+  .model-row {
+    display: flex; margin: 0 24px; border-bottom: 1px solid #c8c5bf;
+    align-items: center; padding: 10px 0;
+  }
+  .model-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #999; min-width: 60px; }
+  .model-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11px; letter-spacing: .06em; padding: 4px 10px;
+    border: 1px solid #c8c5bf; background: transparent; cursor: pointer;
+    color: #888; font-family: inherit; border-radius: 2px; transition: all .15s;
+  }
+  .pill.active { background: #111; color: #f0eeea; border-color: #111; }
+  .pill:hover:not(.active) { background: #e8e5df; color: #111; }
+ 
   .drop-area {
     margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
     padding: 0; text-align: center; cursor: pointer;
@@ -81,9 +94,8 @@
     position: relative; z-index: 1; transition: opacity .3s;
   }
   .drop-area.animating .drop-big,
-  .drop-area.animating .drop-sub { opacity: 0.15; }
+  .drop-area.animating .drop-sub { opacity: 0.12; }
  
-  /* WAVEFORM */
   .waveform-wrap {
     margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
     height: 76px; display: flex; align-items: center; padding: 0 18px; overflow: hidden;
@@ -91,14 +103,12 @@
   .waveform-bars { display: flex; align-items: center; gap: 2px; width: 100%; height: 100%; }
   .bar { flex: 1; background: #111; border-radius: 1px; height: 8%; transition: height .2s ease; }
  
-  /* META */
   .meta-strip { display: flex; margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; }
   .meta-cell { flex: 1; padding: 10px 16px; border-right: 1px solid #c8c5bf; }
   .meta-cell:last-child { border-right: none; }
   .meta-label { font-size: 10px; letter-spacing: .1em; color: #999; font-weight: 600; margin-bottom: 4px; }
   .meta-val { font-size: 20px; font-weight: 800; color: #111; line-height: 1.1; letter-spacing: -.01em; }
  
-  /* КНОПКИ */
   .action-row { display: flex; margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; }
  
   #goBtn {
@@ -121,7 +131,6 @@
   #resetBtn.ready:hover { background: #d0cdc7; color: #111; }
   #resetBtn.ready:active { background: #c0bdb7; }
  
-  /* ПРОГРЕСС */
   .progress-row {
     margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
     padding: 14px 18px; display: none;
@@ -137,7 +146,6 @@
     color: #c94b1e; letter-spacing: .04em; display: none;
   }
  
-  /* РЕЗУЛЬТАТ */
   .result-wrap { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; display: none; }
   .result-header {
     display: flex; justify-content: space-between; align-items: center;
@@ -150,7 +158,10 @@
     color: #111; font-family: inherit; transition: background .12s;
   }
   .btn-copy:hover { background: #e8e5df; }
-  .result-body { padding: 18px; font-size: 14px; line-height: 1.8; color: #111; white-space: pre-wrap; min-height: 80px; }
+  .result-body {
+    padding: 18px; font-size: 14px; line-height: 1.8; color: #111;
+    white-space: pre-wrap; min-height: 80px; font-family: inherit;
+  }
  
   .bottom-bar {
     display: flex; justify-content: space-between; align-items: center;
@@ -177,7 +188,7 @@
       <div class="field-label">
         API KEY <span class="saved-badge" id="savedBadge">СОХРАНЁН</span>
       </div>
-      <input class="key-input" type="password" id="apiKey" placeholder="sk-..." oninput="onKeyInput()"/>
+      <input class="key-input" type="password" id="apiKey" placeholder="sk-aitunnel-..." oninput="onKeyInput()"/>
     </div>
     <div class="key-field">
       <div class="field-label">ЯЗЫК / LANG</div>
@@ -189,8 +200,16 @@
         <option value="de">DE — Deutsch</option>
         <option value="fr">FR — Français</option>
         <option value="es">ES — Español</option>
-        <option value="zh">ZH — 中文</option>
       </select>
+    </div>
+  </div>
+ 
+  <div class="model-row">
+    <span class="model-label">МОДЕЛЬ</span>
+    <div class="model-pills">
+      <button class="pill" data-model="gpt-4o-transcribe" onclick="setModel(this)">GPT-4o + спикеры</button>
+      <button class="pill" data-model="gpt-4o-mini-transcribe" onclick="setModel(this)">GPT-4o Mini</button>
+      <button class="pill active" data-model="whisper-1" onclick="setModel(this)">Whisper 1</button>
     </div>
   </div>
  
@@ -228,61 +247,74 @@
  
   <div class="result-wrap" id="resultWrap">
     <div class="result-header">
-      <span class="result-tag">РЕЗУЛЬТАТ</span>
+      <span class="result-tag" id="resultTag">РЕЗУЛЬТАТ</span>
       <button class="btn-copy" onclick="cp()">КОПИРОВАТЬ</button>
     </div>
     <div class="result-body" id="resultBody"></div>
   </div>
  
   <div class="bottom-bar">
-    <span class="bottom-label">WHISPER-1 · OPENAI</span>
+    <span class="bottom-label">AITUNNEL.RU · OPENAI</span>
     <span class="bottom-label" id="wordCount"></span>
   </div>
  
 </div>
 <script>
 const CHUNK = 24 * 1024 * 1024;
+const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
 let file = null, waveTimer = null, animFrame = null, isRunning = false;
+let currentModel = 'whisper-1';
  
 window.addEventListener('DOMContentLoaded', () => {
-  const saved = localStorage.getItem('oai_key');
+  const saved = localStorage.getItem('aitunnel_key');
   if (saved) {
     document.getElementById('apiKey').value = saved;
     document.getElementById('savedBadge').classList.add('visible');
+  }
+  const savedModel = localStorage.getItem('transcribe_model');
+  if (savedModel) {
+    currentModel = savedModel;
+    document.querySelectorAll('.pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.model === savedModel);
+    });
   }
   buildWave();
   updateBtn();
 });
  
+function setModel(btn) {
+  currentModel = btn.dataset.model;
+  localStorage.setItem('transcribe_model', currentModel);
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+}
+ 
 function onKeyInput() {
   const k = document.getElementById('apiKey').value.trim();
-  if (k.startsWith('sk-') && k.length > 20) {
-    localStorage.setItem('oai_key', k);
+  if (k.length > 20) {
+    localStorage.setItem('aitunnel_key', k);
     document.getElementById('savedBadge').classList.add('visible');
   } else {
-    localStorage.removeItem('oai_key');
+    localStorage.removeItem('aitunnel_key');
     document.getElementById('savedBadge').classList.remove('visible');
   }
   updateBtn();
 }
  
-/* ---- ОРГАНИЧНАЯ АНИМАЦИЯ ВОЛН ---- */
+/* ---- АНИМАЦИЯ ---- */
 function startAnim(processing) {
   const canvas = document.getElementById('animCanvas');
   const drop = document.getElementById('dropArea');
   const ctx = canvas.getContext('2d');
- 
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
   canvas.classList.add('visible');
   drop.classList.add('animating');
- 
   let t = 0;
  
   function draw() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
- 
     const numWaves = processing ? 6 : 4;
     for (let l = 0; l < numWaves; l++) {
       const phase = (l / numWaves) * Math.PI * 2;
@@ -292,12 +324,10 @@ function startAnim(processing) {
         : H * (0.08 + l * 0.02);
       const freq = 0.008 + l * 0.003;
       const alpha = processing ? 0.18 - l * 0.02 : 0.08 - l * 0.012;
- 
       ctx.beginPath();
       ctx.strokeStyle = processing ? '#c94b1e' : '#111111';
       ctx.globalAlpha = Math.max(0.02, alpha);
       ctx.lineWidth = processing ? 1.8 - l * 0.15 : 1.2 - l * 0.1;
- 
       for (let x = 0; x <= W; x += 1.5) {
         const y = H / 2
           + Math.sin(x * freq + t * speed * 60 + phase) * amp
@@ -318,9 +348,8 @@ function stopAnim() {
   cancelAnimationFrame(animFrame);
   animFrame = null;
   const canvas = document.getElementById('animCanvas');
-  const drop = document.getElementById('dropArea');
+  document.getElementById('dropArea').classList.remove('animating');
   canvas.classList.remove('visible');
-  drop.classList.remove('animating');
   const ctx = canvas.getContext('2d');
   if (canvas.width) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -373,7 +402,7 @@ function setF(f) {
  
 function updateBtn() {
   const k = document.getElementById('apiKey').value.trim();
-  const ready = !!(file && k.startsWith('sk-')) && !isRunning;
+  const ready = !!(file && k.length > 20) && !isRunning;
   const go = document.getElementById('goBtn');
   const rst = document.getElementById('resetBtn');
   go.className = isRunning ? 'running' : (ready ? 'active' : '');
@@ -385,20 +414,27 @@ function hideErr() { document.getElementById('errStrip').style.display = 'none';
  
 async function transcribeChunk(blob, key, lang, idx) {
   const form = new FormData();
-  form.append('file', new File([blob], 'chunk' + idx + '.mp3', { type: blob.type || 'audio/mpeg' }));
-  form.append('model', 'whisper-1');
+  form.append('file', new File([blob], 'chunk' + idx + '.webm', { type: blob.type || 'audio/webm' }));
+  form.append('model', currentModel);
   form.append('response_format', 'text');
   if (lang) form.append('language', lang);
-  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST', headers: { 'Authorization': 'Bearer ' + key }, body: form
+ 
+  const res = await fetch(BASE_URL, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + key },
+    body: form
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Ошибка ' + res.status); }
+  if (!res.ok) {
+    let msg = 'Ошибка ' + res.status;
+    try { const e = await res.json(); msg = e.error?.message || msg; } catch(e) {}
+    throw new Error(msg);
+  }
   return await res.text();
 }
  
 async function go() {
   const k = document.getElementById('apiKey').value.trim();
-  if (!file || !k.startsWith('sk-') || isRunning) return;
+  if (!file || k.length < 20 || isRunning) return;
  
   isRunning = true;
   updateBtn();
@@ -421,7 +457,7 @@ async function go() {
     for (let i = 0; i < total; i++) {
       const blob = file.slice(i * CHUNK, (i + 1) * CHUNK);
       document.getElementById('progFill').style.width = Math.round((i / total) * 90) + '%';
-      document.getElementById('progLabel').textContent = total > 1 ? 'НАРЕЗКА И ОТПРАВКА' : 'WHISPER ОБРАБАТЫВАЕТ';
+      document.getElementById('progLabel').textContent = total > 1 ? 'НАРЕЗКА И ОТПРАВКА' : 'ОБРАБАТЫВАЕМ';
       document.getElementById('chunkInfo').textContent = total > 1 ? 'ЧАСТЬ ' + (i + 1) + ' ИЗ ' + total : '';
       document.getElementById('metaStatus').textContent = (i + 1) + '/' + total;
       results.push((await transcribeChunk(blob, k, lang, i)).trim());
@@ -431,9 +467,13 @@ async function go() {
     document.getElementById('progLabel').textContent = 'ГОТОВО';
     document.getElementById('chunkInfo').textContent = '';
  
-    const full = results.join(' ');
+    const full = results.join('\n\n');
     document.getElementById('resultBody').textContent = full;
     document.getElementById('resultWrap').style.display = 'block';
+ 
+    const modelName = document.querySelector('.pill.active').textContent;
+    document.getElementById('resultTag').textContent = 'РЕЗУЛЬТАТ · ' + modelName.toUpperCase();
+ 
     const words = full.split(/\s+/).filter(Boolean).length;
     document.getElementById('wordCount').textContent = words + ' СЛ · ' + full.length + ' СИМ';
     document.getElementById('topStatus').textContent = 'ГОТОВО';
