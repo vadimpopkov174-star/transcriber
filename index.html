@@ -60,7 +60,6 @@
   .prog-track { height: 2px; background: #d0cec8; margin-bottom: 8px; }
   .prog-fill { height: 100%; width: 0%; background: #c94b1e; transition: width .4s cubic-bezier(.4,0,.2,1); }
   .prog-label { font-size: 11px; letter-spacing: .08em; color: #888; }
-  .chunk-info { font-size: 11px; letter-spacing: .06em; color: #c94b1e; margin-top: 4px; }
   .err-strip { margin: 0 24px; border: 1px solid #c94b1e; border-top: none; background: #fdf0eb; padding: 10px 18px; font-size: 12px; color: #c94b1e; letter-spacing: .04em; display: none; }
   .result-wrap { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; display: none; }
   .result-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; border-bottom: 1px solid #c8c5bf; }
@@ -112,7 +111,7 @@
   <div class="drop-area" id="dropArea" onclick="document.getElementById('fi').click()" ondragover="ev(event,1)" ondragleave="ev(event,0)" ondrop="dr(event)">
     <canvas class="anim-canvas" id="animCanvas"></canvas>
     <div class="drop-big" id="dropBig">ЗАГРУЗИТЬ ФАЙЛ</div>
-    <div class="drop-sub" id="dropSub">MP3 · MP4 · WAV · M4A · OGG · WEBM · любой размер</div>
+    <div class="drop-sub" id="dropSub">MP3 · WAV · M4A · OGG · WEBM · до 25 МБ</div>
   </div>
   <input type="file" id="fi" accept="audio/*,video/*" style="display:none" onchange="setF(this.files[0])">
   <div class="waveform-wrap">
@@ -120,7 +119,7 @@
   </div>
   <div class="meta-strip">
     <div class="meta-cell"><div class="meta-label">РАЗМЕР</div><div class="meta-val" id="metaSize">—</div></div>
-    <div class="meta-cell"><div class="meta-label">ЧАНКИ</div><div class="meta-val" id="metaChunks">—</div></div>
+    <div class="meta-cell"><div class="meta-label">МОДЕЛЬ</div><div class="meta-val" id="metaModel">—</div></div>
     <div class="meta-cell"><div class="meta-label">СТАТУС</div><div class="meta-val" id="metaStatus">—</div></div>
   </div>
   <div class="action-row">
@@ -129,8 +128,7 @@
   </div>
   <div class="progress-row" id="progRow">
     <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
-    <div class="prog-label" id="progLabel">ПОДГОТОВКА</div>
-    <div class="chunk-info" id="chunkInfo"></div>
+    <div class="prog-label" id="progLabel">ОБРАБАТЫВАЕМ</div>
   </div>
   <div class="err-strip" id="errStrip"></div>
   <div class="result-wrap" id="resultWrap">
@@ -149,10 +147,6 @@
   </div>
 </div>
 <script>
-// GPT-4o transcribe принимает файлы целиком (не более 25 МБ)
-// Whisper режем по 8 МБ
-const CHUNK_WHISPER = 8 * 1024 * 1024;
-const MAX_WHOLE = 25 * 1024 * 1024;
 const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
 let file = null, waveTimer = null, animFrame = null, isRunning = false;
 let currentModel = 'whisper-1';
@@ -165,6 +159,7 @@ window.addEventListener('DOMContentLoaded', () => {
     currentModel = savedModel;
     document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.model === savedModel));
   }
+  updateModelMeta();
   buildWave(); updateBtn();
 });
 
@@ -173,14 +168,16 @@ function setModel(btn) {
   localStorage.setItem('transcribe_model', currentModel);
   document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
-  updateChunkInfo();
+  updateModelMeta();
 }
 
-function updateChunkInfo() {
-  if (!file) return;
-  const isWhisper = currentModel === 'whisper-1';
-  const chunks = isWhisper ? Math.ceil(file.size / CHUNK_WHISPER) : 1;
-  document.getElementById('metaChunks').textContent = chunks > 1 ? chunks + ' ЧСТ' : '1 ЧСТ';
+function updateModelMeta() {
+  const labels = {
+    'whisper-1': 'W-1',
+    'gpt-4o-mini-transcribe': '4o-M',
+    'gpt-4o-transcribe-diarize': '4o+SPK'
+  };
+  document.getElementById('metaModel').textContent = labels[currentModel] || '—';
 }
 
 function onKeyInput() {
@@ -251,13 +248,10 @@ function setF(f) {
   if (!f) return;
   file = f;
   const mb = (f.size / 1024 / 1024).toFixed(1);
-  const isWhisper = currentModel === 'whisper-1';
-  const chunks = isWhisper ? Math.ceil(f.size / CHUNK_WHISPER) : 1;
   document.getElementById('dropBig').textContent = f.name.length > 24 ? f.name.slice(0, 22) + '…' : f.name;
   document.getElementById('dropSub').textContent = '';
   document.getElementById('dropArea').classList.add('has-file');
   document.getElementById('metaSize').textContent = mb + ' МБ';
-  document.getElementById('metaChunks').textContent = chunks > 1 ? chunks + ' ЧСТ' : '1 ЧСТ';
   document.getElementById('metaStatus').textContent = 'ГОТОВ';
   document.getElementById('topStatus').textContent = 'ФАЙЛ ЗАГРУЖЕН';
   document.getElementById('topStatus').classList.remove('processing');
@@ -274,75 +268,23 @@ function updateBtn() {
 function showErr(msg) { const e = document.getElementById('errStrip'); e.textContent = 'ERR · ' + msg; e.style.display = 'block'; }
 function hideErr() { document.getElementById('errStrip').style.display = 'none'; }
 
-async function transcribeChunk(blob, key, lang, idx, ext, mime) {
-  ext = ext || file.name.split('.').pop().toLowerCase();
-  mime = mime || blob.type || ('audio/' + (ext === 'mp3' ? 'mpeg' : ext));
+async function transcribe(f, key, lang) {
+  const ext = f.name.split('.').pop().toLowerCase();
+  const mime = f.type || ('audio/' + (ext === 'mp3' ? 'mpeg' : ext));
   const form = new FormData();
-  form.append('file', new File([blob], 'audio.' + ext, { type: mime }));
+  form.append('file', new File([f], f.name, { type: mime }));
   form.append('model', currentModel);
-  const isW = currentModel === 'whisper-1';
-  if (isW) form.append('response_format', 'text');
+  if (currentModel === 'whisper-1') form.append('response_format', 'text');
   if (lang) form.append('language', lang);
+  if (currentModel === 'gpt-4o-transcribe-diarize') form.append('chunking_strategy', 'auto');
   const res = await fetch(BASE_URL, { method: 'POST', headers: { 'Authorization': 'Bearer ' + key }, body: form });
   if (!res.ok) {
     let msg = 'Ошибка ' + res.status;
     try { const e = await res.json(); msg = e.error?.message || msg; } catch(e) {}
     throw new Error(msg);
   }
-  if (isW) return await res.text();
+  if (currentModel === 'whisper-1') return await res.text();
   const d = await res.json(); return d.text || '';
-}
-
-// Декодирует аудио и возвращает массив WAV-блобов нужной длины
-async function decodeAndSplit(inputFile) {
-  const NEEDS = ['webm','ogg','oga','opus','mp4','m4a'];
-  const ext = inputFile.name.split('.').pop().toLowerCase();
-  const needsDecode = NEEDS.includes(ext);
-
-  if (!needsDecode) {
-    // mp3 — просто режем по байтам как раньше
-    const chunks = [];
-    const CHUNK = 8 * 1024 * 1024;
-    for (let i = 0; i < inputFile.size; i += CHUNK)
-      chunks.push(inputFile.slice(i, i + CHUNK));
-    return { chunks, ext: 'mp3', mime: 'audio/mpeg' };
-  }
-
-  document.getElementById('progLabel').textContent = 'ДЕКОДИРУЕМ АУДИО';
-
-  const arrayBuf = await inputFile.arrayBuffer();
-  const audioCtx = new AudioContext();
-  const decoded = await audioCtx.decodeAudioData(arrayBuf);
-  await audioCtx.close();
-
-  const sr = decoded.sampleRate;
-  const SEG_SECS = 600; // 10 минут на чанк
-  const SEG_SAMPLES = SEG_SECS * sr;
-  const total = decoded.length;
-  const numCh = Math.min(decoded.numberOfChannels, 1); // моно
-  const chunks = [];
-
-  for (let start = 0; start < total; start += SEG_SAMPLES) {
-    const end = Math.min(start + SEG_SAMPLES, total);
-    const len = end - start;
-    const wavBuf = new ArrayBuffer(44 + len * numCh * 2);
-    const v = new DataView(wavBuf);
-    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-    const wi = (o, n, b) => { for (let i = 0; i < b; i++) { v.setUint8(o + i, n & 0xff); n >>= 8; } };
-    ws(0, 'RIFF'); wi(4, 36 + len * numCh * 2, 4); ws(8, 'WAVE');
-    ws(12, 'fmt '); wi(16, 16, 4); wi(20, 1, 2); wi(22, numCh, 2);
-    wi(24, sr, 4); wi(28, sr * numCh * 2, 4); wi(32, numCh * 2, 2); wi(34, 16, 2);
-    ws(36, 'data'); wi(40, len * numCh * 2, 4);
-    let off = 44;
-    const ch0 = decoded.getChannelData(0);
-    for (let i = start; i < end; i++) {
-      const s = Math.max(-1, Math.min(1, ch0[i]));
-      v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
-    }
-    chunks.push(new Blob([wavBuf], { type: 'audio/wav' }));
-  }
-
-  return { chunks, ext: 'wav', mime: 'audio/wav' };
 }
 
 async function go() {
@@ -352,49 +294,26 @@ async function go() {
   document.getElementById('resultWrap').style.display = 'none';
   document.getElementById('wordCount').textContent = '';
   document.getElementById('progRow').style.display = 'block';
+  document.getElementById('progFill').style.width = '30%';
+  document.getElementById('progLabel').textContent = 'ОБРАБАТЫВАЕМ';
   document.getElementById('topStatus').textContent = 'ОБРАБОТКА';
   document.getElementById('topStatus').classList.add('processing');
+  document.getElementById('metaStatus').textContent = '...';
   stopAnim(); startAnim(true); animWave(true);
 
   const lang = document.getElementById('lang').value;
-  const isWhisper = currentModel === 'whisper-1';
 
-  let chunks = [], chunkExt = 'mp3', chunkMime = 'audio/mpeg';
-  if (isWhisper) {
-    document.getElementById('progLabel').textContent = 'ПОДГОТОВКА';
-    try {
-      const result = await decodeAndSplit(file);
-      chunks = result.chunks;
-      chunkExt = result.ext;
-      chunkMime = result.mime;
-      document.getElementById('metaChunks').textContent = chunks.length + ' ЧСТ';
-    } catch(e) {
-      // fallback — отправляем как есть
-      chunks = [file];
-    }
-  } else {
-    chunks = [file];
-  }
-
-  const results = [];
   try {
-    for (let i = 0; i < chunks.length; i++) {
-      document.getElementById('progFill').style.width = Math.round((i / chunks.length) * 90) + '%';
-      document.getElementById('progLabel').textContent = chunks.length > 1 ? 'ОБРАБАТЫВАЕМ ЧАСТИ' : 'ОБРАБАТЫВАЕМ';
-      document.getElementById('chunkInfo').textContent = chunks.length > 1 ? 'ЧАСТЬ ' + (i + 1) + ' ИЗ ' + chunks.length : '';
-      document.getElementById('metaStatus').textContent = chunks.length > 1 ? (i + 1) + '/' + chunks.length : '...';
-      results.push((await transcribeChunk(chunks[i], k, lang, i, chunkExt, chunkMime)).trim());
-    }
+    document.getElementById('progFill').style.width = '60%';
+    const text = (await transcribe(file, k, lang)).trim();
     document.getElementById('progFill').style.width = '100%';
     document.getElementById('progLabel').textContent = 'ГОТОВО';
-    document.getElementById('chunkInfo').textContent = '';
-    const full = results.join('\n\n');
-    document.getElementById('resultBody').textContent = full;
+    document.getElementById('resultBody').textContent = text;
     document.getElementById('resultWrap').style.display = 'block';
     const modelName = document.querySelector('.pill.active').textContent;
     document.getElementById('resultTag').textContent = 'РЕЗУЛЬТАТ · ' + modelName.toUpperCase();
-    const words = full.split(/\s+/).filter(Boolean).length;
-    document.getElementById('wordCount').textContent = words + ' СЛ · ' + full.length + ' СИМ';
+    const words = text.split(/\s+/).filter(Boolean).length;
+    document.getElementById('wordCount').textContent = words + ' СЛ · ' + text.length + ' СИМ';
     document.getElementById('topStatus').textContent = 'ГОТОВО';
     document.getElementById('topStatus').classList.remove('processing');
     document.getElementById('metaStatus').textContent = 'DONE';
@@ -433,10 +352,10 @@ function reset() {
   if (!file || isRunning) return;
   file = null; clearInterval(waveTimer); stopAnim(); animWave(false);
   document.getElementById('dropBig').textContent = 'ЗАГРУЗИТЬ ФАЙЛ';
-  document.getElementById('dropSub').textContent = 'MP3 · MP4 · WAV · M4A · OGG · WEBM · любой размер';
+  document.getElementById('dropSub').textContent = 'MP3 · WAV · M4A · OGG · WEBM · до 25 МБ';
   document.getElementById('dropArea').classList.remove('has-file', 'over');
   document.getElementById('metaSize').textContent = '—';
-  document.getElementById('metaChunks').textContent = '—';
+  document.getElementById('metaModel').textContent = '—';
   document.getElementById('metaStatus').textContent = '—';
   document.getElementById('topStatus').textContent = 'ОЖИДАНИЕ';
   document.getElementById('topStatus').classList.remove('processing');
