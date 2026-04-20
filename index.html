@@ -28,10 +28,16 @@
   .select-bare { background: transparent; border: none; outline: none; font-size: 13px; color: #111; cursor: pointer; padding: 0; width: 100%; font-family: inherit; }
   .model-row { display: flex; margin: 0 24px; border-bottom: 1px solid #c8c5bf; align-items: center; padding: 10px 0; }
   .model-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #999; min-width: 60px; }
-  .model-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .model-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .pill { font-size: 11px; letter-spacing: .06em; padding: 4px 10px; border: 1px solid #c8c5bf; background: transparent; cursor: pointer; color: #888; font-family: inherit; border-radius: 2px; transition: all .15s; }
   .pill.active { background: #111; color: #f0eeea; border-color: #111; }
   .pill:hover:not(.active) { background: #e8e5df; color: #111; }
+  .info-wrap { position: relative; display: inline-flex; align-items: center; }
+  .info-btn { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #c8c5bf; background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; color: #aaa; font-family: serif; display: inline-flex; align-items: center; justify-content: center; line-height: 1; transition: all .15s; margin-left: 4px; flex-shrink: 0; }
+  .info-btn:hover { border-color: #888; color: #555; }
+  .info-tooltip { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 8px); background: #111; color: #f0eeea; font-size: 10px; letter-spacing: .06em; line-height: 1.7; padding: 10px 14px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 10; border-radius: 2px; }
+  .info-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: #111; }
+  .info-wrap:hover .info-tooltip { opacity: 1; }
   .drop-area { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; padding: 0; text-align: center; cursor: pointer; transition: background .15s; user-select: none; position: relative; overflow: hidden; height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
   .drop-area:hover, .drop-area.over, .drop-area.has-file { background: #e8e5df; }
   .anim-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .6s; pointer-events: none; }
@@ -39,6 +45,12 @@
   .drop-big { font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #111; letter-spacing: -.02em; line-height: 1; margin-bottom: 8px; position: relative; z-index: 1; transition: opacity .3s; }
   .drop-sub { font-size: 11px; letter-spacing: .08em; color: #999; position: relative; z-index: 1; transition: opacity .3s; }
   .drop-area.animating .drop-big, .drop-area.animating .drop-sub { opacity: 0.12; }
+  .anim-row { display: flex; justify-content: flex-end; align-items: center; margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; border-bottom: none; padding: 5px 12px; gap: 5px; }
+  .anim-label { font-size: 9px; letter-spacing: .1em; color: #bbb; font-weight: 600; margin-right: 3px; }
+  .anim-dot { width: 5px; height: 5px; border-radius: 50%; background: #ccc; transition: background .2s; }
+  .anim-dot.active { background: #555; }
+  .anim-arrow { background: transparent; border: none; cursor: pointer; color: #aaa; font-size: 11px; padding: 0 2px; line-height: 1; transition: color .15s; }
+  .anim-arrow:hover { color: #111; }
   .waveform-wrap { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; height: 76px; display: flex; align-items: center; padding: 0 18px; overflow: hidden; }
   .waveform-bars { display: flex; align-items: center; gap: 2px; width: 100%; height: 100%; }
   .bar { flex: 1; background: #111; border-radius: 1px; height: 8%; transition: height .2s ease; }
@@ -103,8 +115,15 @@
   <div class="model-row">
     <span class="model-label">МОДЕЛЬ</span>
     <div class="model-pills">
-      <button class="pill" data-model="gpt-4o-transcribe-diarize" onclick="setModel(this)">GPT-4o + спикеры</button>
-      <button class="pill" data-model="gpt-4o-mini-transcribe" onclick="setModel(this)">GPT-4o Mini</button>
+      <div class="info-wrap">
+        <button class="pill" data-model="gpt-4o-transcribe-diarize" onclick="setModel(this)">GPT-4o + спикеры</button>
+        <button class="info-btn">i</button>
+        <div class="info-tooltip">
+          Различает спикеров · Лучшее качество<br>
+          Макс. размер: 25 МБ · Макс. длина: ~23 мин<br>
+          Конвертируй запись в MP3 48 kbps перед загрузкой
+        </div>
+      </div>
       <button class="pill active" data-model="whisper-1" onclick="setModel(this)">Whisper 1</button>
     </div>
   </div>
@@ -114,6 +133,14 @@
     <div class="drop-sub" id="dropSub">MP3 · WAV · M4A · OGG · WEBM · до 25 МБ</div>
   </div>
   <input type="file" id="fi" accept="audio/*,video/*" style="display:none" onchange="setF(this.files[0])">
+  <div class="anim-row">
+    <span class="anim-label">АНИМАЦИЯ</span>
+    <button class="anim-arrow" onclick="prevAnim()">&#8592;</button>
+    <div class="anim-dot active" id="dot0"></div>
+    <div class="anim-dot" id="dot1"></div>
+    <div class="anim-dot" id="dot2"></div>
+    <button class="anim-arrow" onclick="nextAnim()">&#8594;</button>
+  </div>
   <div class="waveform-wrap">
     <div class="waveform-bars" id="waveBars"></div>
   </div>
@@ -150,6 +177,8 @@
 const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
 let file = null, waveTimer = null, animFrame = null, isRunning = false;
 let currentModel = 'whisper-1';
+let currentAnimStyle = 0;
+const ANIM_COUNT = 3;
 
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('aitunnel_key');
@@ -159,9 +188,31 @@ window.addEventListener('DOMContentLoaded', () => {
     currentModel = savedModel;
     document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.model === savedModel));
   }
+  const savedAnim = localStorage.getItem('anim_style');
+  if (savedAnim !== null) currentAnimStyle = parseInt(savedAnim);
+  updateAnimDots();
   updateModelMeta();
   buildWave(); updateBtn();
 });
+
+function prevAnim() {
+  currentAnimStyle = (currentAnimStyle - 1 + ANIM_COUNT) % ANIM_COUNT;
+  localStorage.setItem('anim_style', currentAnimStyle);
+  updateAnimDots();
+  if (animFrame) { stopAnim(); startAnim(isRunning); }
+}
+
+function nextAnim() {
+  currentAnimStyle = (currentAnimStyle + 1) % ANIM_COUNT;
+  localStorage.setItem('anim_style', currentAnimStyle);
+  updateAnimDots();
+  if (animFrame) { stopAnim(); startAnim(isRunning); }
+}
+
+function updateAnimDots() {
+  for (let i = 0; i < ANIM_COUNT; i++)
+    document.getElementById('dot' + i).classList.toggle('active', i === currentAnimStyle);
+}
 
 function setModel(btn) {
   currentModel = btn.dataset.model;
@@ -172,11 +223,7 @@ function setModel(btn) {
 }
 
 function updateModelMeta() {
-  const labels = {
-    'whisper-1': 'W-1',
-    'gpt-4o-mini-transcribe': '4o-M',
-    'gpt-4o-transcribe-diarize': '4o+SPK'
-  };
+  const labels = { 'whisper-1': 'W-1', 'gpt-4o-transcribe-diarize': '4o+SPK' };
   document.getElementById('metaModel').textContent = labels[currentModel] || '—';
 }
 
@@ -187,7 +234,72 @@ function onKeyInput() {
   updateBtn();
 }
 
-function startAnim(processing) {
+// --- АНИМАЦИИ ---
+
+// 0: Waves — оригинальная (волны)
+function drawWaves(ctx, W, H, t, proc) {
+  const n = proc ? 6 : 4;
+  for (let l = 0; l < n; l++) {
+    const phase = (l / n) * Math.PI * 2;
+    const speed = proc ? 0.022 + l * 0.004 : 0.008 + l * 0.002;
+    const amp = proc ? H * (0.18 + l * 0.04) * (0.5 + 0.5 * Math.sin(t * 0.01 + l)) : H * (0.08 + l * 0.02);
+    const freq = 0.008 + l * 0.003;
+    ctx.beginPath();
+    ctx.strokeStyle = proc ? '#c94b1e' : '#111';
+    ctx.globalAlpha = Math.max(0.02, proc ? 0.18 - l * 0.02 : 0.08 - l * 0.012);
+    ctx.lineWidth = proc ? 1.8 - l * 0.15 : 1.2 - l * 0.1;
+    for (let x = 0; x <= W; x += 1.5) {
+      const y = H/2 + Math.sin(x*freq + t*speed*60 + phase)*amp + Math.sin(x*freq*2.3 + t*speed*35 + phase*1.4)*amp*0.35 + Math.sin(x*freq*0.5 + t*speed*15)*amp*0.25;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 1: Breath — медленное дыхание, одна спокойная волна
+function drawBreath(ctx, W, H, t, proc) {
+  const n = proc ? 4 : 3;
+  for (let l = 0; l < n; l++) {
+    const phase = (l / n) * Math.PI * 2;
+    const breathe = 0.5 + 0.5 * Math.sin(t * 0.007 + l * 1.1);
+    const amp = proc
+      ? H * (0.10 + l * 0.05) * breathe
+      : H * (0.035 + l * 0.02) * (0.5 + 0.5 * breathe);
+    const freq = 0.0035 + l * 0.001;
+    const spd = proc ? 0.004 : 0.002;
+    ctx.beginPath();
+    ctx.strokeStyle = proc ? '#c94b1e' : '#111';
+    ctx.globalAlpha = Math.max(0.01, proc ? 0.13 - l * 0.02 : 0.055 - l * 0.01);
+    ctx.lineWidth = 1.3 - l * 0.1;
+    for (let x = 0; x <= W; x += 2) {
+      const y = H/2 + Math.sin(x*freq + t*spd*60 + phase)*amp + Math.sin(x*freq*1.5 + t*spd*22 + phase)*amp*0.15;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+// 2: Drift — горизонтальные линии, медленно плывут
+function drawDrift(ctx, W, H, t, proc) {
+  const n = proc ? 7 : 5;
+  for (let l = 0; l < n; l++) {
+    const baseY = H * (0.18 + (l / (n - 1)) * 0.64);
+    const drift = Math.sin(t * 0.003 + l * 0.8) * H * (proc ? 0.07 : 0.03);
+    const amp = proc ? H * 0.055 * (0.3 + 0.7 * Math.abs(Math.sin(t * 0.004 + l))) : H * 0.02;
+    const freq = 0.004 + l * 0.0008;
+    ctx.beginPath();
+    ctx.strokeStyle = proc ? '#c94b1e' : '#111';
+    ctx.globalAlpha = Math.max(0.01, proc ? 0.13 - l * 0.012 : 0.05 - l * 0.006);
+    ctx.lineWidth = 0.9;
+    for (let x = 0; x <= W; x += 2) {
+      const y = baseY + drift + Math.sin(x * freq + t * 0.01 * 60 + l) * amp;
+      x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+function startAnim(proc) {
   const canvas = document.getElementById('animCanvas');
   const drop = document.getElementById('dropArea');
   const ctx = canvas.getContext('2d');
@@ -197,23 +309,9 @@ function startAnim(processing) {
   function draw() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    const n = processing ? 6 : 4;
-    for (let l = 0; l < n; l++) {
-      const phase = (l / n) * Math.PI * 2;
-      const speed = processing ? 0.022 + l * 0.004 : 0.008 + l * 0.002;
-      const amp = processing ? H * (0.18 + l * 0.04) * (0.5 + 0.5 * Math.sin(t * 0.01 + l)) : H * (0.08 + l * 0.02);
-      const freq = 0.008 + l * 0.003;
-      const alpha = processing ? 0.18 - l * 0.02 : 0.08 - l * 0.012;
-      ctx.beginPath();
-      ctx.strokeStyle = processing ? '#c94b1e' : '#111111';
-      ctx.globalAlpha = Math.max(0.02, alpha);
-      ctx.lineWidth = processing ? 1.8 - l * 0.15 : 1.2 - l * 0.1;
-      for (let x = 0; x <= W; x += 1.5) {
-        const y = H / 2 + Math.sin(x * freq + t * speed * 60 + phase) * amp + Math.sin(x * freq * 2.3 + t * speed * 35 + phase * 1.4) * amp * 0.35 + Math.sin(x * freq * 0.5 + t * speed * 15) * amp * 0.25;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
+    if (currentAnimStyle === 0) drawWaves(ctx, W, H, t, proc);
+    else if (currentAnimStyle === 1) drawBreath(ctx, W, H, t, proc);
+    else drawDrift(ctx, W, H, t, proc);
     ctx.globalAlpha = 1; t++;
     animFrame = requestAnimationFrame(draw);
   }
@@ -302,7 +400,6 @@ async function go() {
   stopAnim(); startAnim(true); animWave(true);
 
   const lang = document.getElementById('lang').value;
-
   try {
     document.getElementById('progFill').style.width = '60%';
     const text = (await transcribe(file, k, lang)).trim();
