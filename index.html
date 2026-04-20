@@ -1,3 +1,6 @@
+Index · HTML
+Copy
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,188 +9,86 @@
 <title>Transcribe — A/01</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
- 
-  body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    background: #f0eeea;
-    color: #111;
-    min-height: 100vh;
-  }
- 
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #f0eeea; color: #111; min-height: 100vh; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 0 0 60px; }
- 
-  .top-bar {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 14px 24px; border-bottom: 1px solid #c8c5bf;
-  }
+  .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid #c8c5bf; }
   .top-label { font-size: 11px; font-weight: 500; letter-spacing: .12em; color: #888; }
   .top-status { font-size: 11px; font-weight: 500; letter-spacing: .1em; color: #888; transition: color .3s; }
   .top-status.processing { color: #c94b1e; }
- 
   .hero { padding: 28px 24px 0; }
-  .hero-title {
-    font-size: clamp(52px, 10vw, 80px);
-    font-weight: 800; line-height: .92; color: #111; letter-spacing: -.03em;
-  }
+  .hero-title { font-size: clamp(52px, 10vw, 80px); font-weight: 800; line-height: .92; color: #111; letter-spacing: -.03em; }
   .hero-title .accent { color: #c94b1e; }
- 
   .divider { height: 1px; background: #c8c5bf; margin: 22px 24px 0; }
- 
   .key-row { display: flex; margin: 0 24px; border-bottom: 1px solid #c8c5bf; }
   .key-field { flex: 1; padding: 12px 0; }
   .key-field:first-child { border-right: 1px solid #c8c5bf; padding-right: 14px; }
   .key-field:last-child { padding-left: 14px; }
   .field-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #999; margin-bottom: 6px; }
-  .saved-badge {
-    display: inline-block; margin-left: 6px; font-size: 9px; letter-spacing: .08em;
-    color: #fff; background: #4a9e6b; padding: 1px 5px; border-radius: 2px;
-    vertical-align: middle; opacity: 0; transition: opacity .3s;
-  }
+  .saved-badge { display: inline-block; margin-left: 6px; font-size: 9px; letter-spacing: .08em; color: #fff; background: #4a9e6b; padding: 1px 5px; border-radius: 2px; vertical-align: middle; opacity: 0; transition: opacity .3s; }
   .saved-badge.visible { opacity: 1; }
-  .key-input {
-    width: 100%; background: transparent; border: none; outline: none;
-    font-size: 13px; font-family: 'Courier New', monospace; color: #111;
-  }
+  .key-input { width: 100%; background: transparent; border: none; outline: none; font-size: 13px; font-family: 'Courier New', monospace; color: #111; }
   .key-input::placeholder { color: #ccc; }
-  .select-bare {
-    background: transparent; border: none; outline: none;
-    font-size: 13px; color: #111; cursor: pointer; padding: 0; width: 100%; font-family: inherit;
-  }
- 
-  .model-row {
-    display: flex; margin: 0 24px; border-bottom: 1px solid #c8c5bf;
-    align-items: center; padding: 10px 0;
-  }
+  .select-bare { background: transparent; border: none; outline: none; font-size: 13px; color: #111; cursor: pointer; padding: 0; width: 100%; font-family: inherit; }
+  .model-row { display: flex; margin: 0 24px; border-bottom: 1px solid #c8c5bf; align-items: center; padding: 10px 0; }
   .model-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #999; min-width: 60px; }
   .model-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-  .pill {
-    font-size: 11px; letter-spacing: .06em; padding: 4px 10px;
-    border: 1px solid #c8c5bf; background: transparent; cursor: pointer;
-    color: #888; font-family: inherit; border-radius: 2px; transition: all .15s;
-  }
+  .pill { font-size: 11px; letter-spacing: .06em; padding: 4px 10px; border: 1px solid #c8c5bf; background: transparent; cursor: pointer; color: #888; font-family: inherit; border-radius: 2px; transition: all .15s; }
   .pill.active { background: #111; color: #f0eeea; border-color: #111; }
   .pill:hover:not(.active) { background: #e8e5df; color: #111; }
- 
-  .drop-area {
-    margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
-    padding: 0; text-align: center; cursor: pointer;
-    transition: background .15s; user-select: none;
-    position: relative; overflow: hidden; height: 130px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .drop-area:hover, .drop-area.over { background: #e8e5df; }
-  .drop-area.has-file { background: #e8e5df; }
- 
-  .anim-canvas {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    opacity: 0; transition: opacity .6s; pointer-events: none;
-  }
+  .drop-area { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; padding: 0; text-align: center; cursor: pointer; transition: background .15s; user-select: none; position: relative; overflow: hidden; height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .drop-area:hover, .drop-area.over, .drop-area.has-file { background: #e8e5df; }
+  .anim-canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .6s; pointer-events: none; }
   .anim-canvas.visible { opacity: 1; }
- 
-  .drop-big {
-    font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #111;
-    letter-spacing: -.02em; line-height: 1; margin-bottom: 8px;
-    position: relative; z-index: 1; transition: opacity .3s;
-  }
-  .drop-sub {
-    font-size: 11px; letter-spacing: .08em; color: #999;
-    position: relative; z-index: 1; transition: opacity .3s;
-  }
-  .drop-area.animating .drop-big,
-  .drop-area.animating .drop-sub { opacity: 0.12; }
- 
-  .waveform-wrap {
-    margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
-    height: 76px; display: flex; align-items: center; padding: 0 18px; overflow: hidden;
-  }
+  .drop-big { font-size: clamp(24px, 4vw, 36px); font-weight: 800; color: #111; letter-spacing: -.02em; line-height: 1; margin-bottom: 8px; position: relative; z-index: 1; transition: opacity .3s; }
+  .drop-sub { font-size: 11px; letter-spacing: .08em; color: #999; position: relative; z-index: 1; transition: opacity .3s; }
+  .drop-area.animating .drop-big, .drop-area.animating .drop-sub { opacity: 0.12; }
+  .waveform-wrap { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; height: 76px; display: flex; align-items: center; padding: 0 18px; overflow: hidden; }
   .waveform-bars { display: flex; align-items: center; gap: 2px; width: 100%; height: 100%; }
   .bar { flex: 1; background: #111; border-radius: 1px; height: 8%; transition: height .2s ease; }
- 
   .meta-strip { display: flex; margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; }
   .meta-cell { flex: 1; padding: 10px 16px; border-right: 1px solid #c8c5bf; }
   .meta-cell:last-child { border-right: none; }
   .meta-label { font-size: 10px; letter-spacing: .1em; color: #999; font-weight: 600; margin-bottom: 4px; }
   .meta-val { font-size: 20px; font-weight: 800; color: #111; line-height: 1.1; letter-spacing: -.01em; }
- 
   .action-row { display: flex; margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; }
- 
-  #goBtn {
-    flex: 2; padding: 18px 20px; font-size: 12px; font-weight: 600; letter-spacing: .1em;
-    border: none; outline: none; font-family: inherit; cursor: default;
-    background: #d8d5cf; color: #a8a5a0;
-    border-right: 1px solid #c8c5bf; transition: background .15s, color .15s;
-  }
+  #goBtn { flex: 2; padding: 18px 20px; font-size: 12px; font-weight: 600; letter-spacing: .1em; border: none; outline: none; font-family: inherit; cursor: default; background: #d8d5cf; color: #a8a5a0; border-right: 1px solid #c8c5bf; transition: background .15s, color .15s; }
   #goBtn.active { background: #c94b1e; color: #fff; cursor: pointer; border-right-color: #a83c16; }
   #goBtn.active:hover { background: #b03f18; }
   #goBtn.active:active { background: #952f10; }
   #goBtn.running { background: #f0e0d6; color: #c94b1e; cursor: default; }
- 
-  #resetBtn {
-    flex: 1; padding: 18px 16px; border: none; outline: none;
-    font-size: 11px; letter-spacing: .08em; font-family: inherit; cursor: default;
-    background: #d8d5cf; color: #b8b5b0; transition: background .15s, color .15s;
-  }
+  #resetBtn { flex: 1; padding: 18px 16px; border: none; outline: none; font-size: 11px; letter-spacing: .08em; font-family: inherit; cursor: default; background: #d8d5cf; color: #b8b5b0; transition: background .15s, color .15s; }
   #resetBtn.ready { background: #e8e5df; color: #555; cursor: pointer; }
   #resetBtn.ready:hover { background: #d0cdc7; color: #111; }
-  #resetBtn.ready:active { background: #c0bdb7; }
- 
-  .progress-row {
-    margin: 0 24px; border: 1px solid #c8c5bf; border-top: none;
-    padding: 14px 18px; display: none;
-  }
+  .progress-row { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; padding: 14px 18px; display: none; }
   .prog-track { height: 2px; background: #d0cec8; margin-bottom: 8px; }
   .prog-fill { height: 100%; width: 0%; background: #c94b1e; transition: width .4s cubic-bezier(.4,0,.2,1); }
   .prog-label { font-size: 11px; letter-spacing: .08em; color: #888; }
   .chunk-info { font-size: 11px; letter-spacing: .06em; color: #c94b1e; margin-top: 4px; }
- 
-  .err-strip {
-    margin: 0 24px; border: 1px solid #c94b1e; border-top: none;
-    background: #fdf0eb; padding: 10px 18px; font-size: 12px;
-    color: #c94b1e; letter-spacing: .04em; display: none;
-  }
- 
+  .err-strip { margin: 0 24px; border: 1px solid #c94b1e; border-top: none; background: #fdf0eb; padding: 10px 18px; font-size: 12px; color: #c94b1e; letter-spacing: .04em; display: none; }
   .result-wrap { margin: 0 24px; border: 1px solid #c8c5bf; border-top: none; display: none; }
-  .result-header {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 18px; border-bottom: 1px solid #c8c5bf;
-  }
+  .result-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px; border-bottom: 1px solid #c8c5bf; }
   .result-tag { font-size: 10px; font-weight: 600; letter-spacing: .12em; color: #888; }
-  .btn-copy {
-    font-size: 11px; letter-spacing: .08em; background: transparent;
-    border: 1px solid #c8c5bf; padding: 4px 12px; cursor: pointer;
-    color: #111; font-family: inherit; transition: background .12s;
-  }
-  .btn-copy:hover { background: #e8e5df; }
-  .result-body {
-    padding: 18px; font-size: 14px; line-height: 1.8; color: #111;
-    white-space: pre-wrap; min-height: 80px; font-family: inherit;
-  }
- 
-  .bottom-bar {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 24px; border-top: 1px solid #c8c5bf; margin: 0 24px;
-  }
+  .result-actions { display: flex; gap: 6px; }
+  .btn-action { font-size: 11px; letter-spacing: .08em; background: transparent; border: 1px solid #c8c5bf; padding: 4px 12px; cursor: pointer; color: #111; font-family: inherit; transition: background .12s; }
+  .btn-action:hover { background: #e8e5df; }
+  .result-body { padding: 18px; font-size: 14px; line-height: 1.8; color: #111; white-space: pre-wrap; min-height: 80px; }
+  .bottom-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; border-top: 1px solid #c8c5bf; margin: 0 24px; }
   .bottom-label { font-size: 10px; letter-spacing: .1em; color: #bbb; }
 </style>
 </head>
 <body>
 <div class="wrap">
- 
   <div class="top-bar">
     <span class="top-label">ТРАНСКРИБАТОР — A/01</span>
     <span class="top-status" id="topStatus">ОЖИДАНИЕ</span>
   </div>
- 
   <div class="hero">
     <div class="hero-title">TRANS<span class="accent">–</span><br>CRIBE</div>
   </div>
   <div class="divider"></div>
- 
   <div class="key-row">
     <div class="key-field">
-      <div class="field-label">
-        API KEY <span class="saved-badge" id="savedBadge">СОХРАНЁН</span>
-      </div>
+      <div class="field-label">API KEY <span class="saved-badge" id="savedBadge">СОХРАНЁН</span></div>
       <input class="key-input" type="password" id="apiKey" placeholder="sk-aitunnel-..." oninput="onKeyInput()"/>
     </div>
     <div class="key-field">
@@ -203,83 +104,71 @@
       </select>
     </div>
   </div>
- 
   <div class="model-row">
     <span class="model-label">МОДЕЛЬ</span>
     <div class="model-pills">
-      <button class="pill" data-model="gpt-4o-transcribe" onclick="setModel(this)">GPT-4o + спикеры</button>
+      <button class="pill" data-model="gpt-4o-transcribe-diarize" onclick="setModel(this)">GPT-4o + спикеры</button>
       <button class="pill" data-model="gpt-4o-mini-transcribe" onclick="setModel(this)">GPT-4o Mini</button>
       <button class="pill active" data-model="whisper-1" onclick="setModel(this)">Whisper 1</button>
     </div>
   </div>
- 
-  <div class="drop-area" id="dropArea"
-    onclick="document.getElementById('fi').click()"
-    ondragover="ev(event,1)" ondragleave="ev(event,0)" ondrop="dr(event)">
+  <div class="drop-area" id="dropArea" onclick="document.getElementById('fi').click()" ondragover="ev(event,1)" ondragleave="ev(event,0)" ondrop="dr(event)">
     <canvas class="anim-canvas" id="animCanvas"></canvas>
     <div class="drop-big" id="dropBig">ЗАГРУЗИТЬ ФАЙЛ</div>
     <div class="drop-sub" id="dropSub">MP3 · MP4 · WAV · M4A · OGG · WEBM · любой размер</div>
   </div>
   <input type="file" id="fi" accept="audio/*,video/*" style="display:none" onchange="setF(this.files[0])">
- 
   <div class="waveform-wrap">
     <div class="waveform-bars" id="waveBars"></div>
   </div>
- 
   <div class="meta-strip">
     <div class="meta-cell"><div class="meta-label">РАЗМЕР</div><div class="meta-val" id="metaSize">—</div></div>
     <div class="meta-cell"><div class="meta-label">ЧАНКИ</div><div class="meta-val" id="metaChunks">—</div></div>
     <div class="meta-cell"><div class="meta-label">СТАТУС</div><div class="meta-val" id="metaStatus">—</div></div>
   </div>
- 
   <div class="action-row">
     <button id="goBtn" onclick="go()">ТРАНСКРИБИРОВАТЬ →</button>
     <button id="resetBtn" onclick="reset()">СБРОС</button>
   </div>
- 
   <div class="progress-row" id="progRow">
     <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
     <div class="prog-label" id="progLabel">ПОДГОТОВКА</div>
     <div class="chunk-info" id="chunkInfo"></div>
   </div>
- 
   <div class="err-strip" id="errStrip"></div>
- 
   <div class="result-wrap" id="resultWrap">
     <div class="result-header">
       <span class="result-tag" id="resultTag">РЕЗУЛЬТАТ</span>
-      <button class="btn-copy" onclick="cp()">КОПИРОВАТЬ</button>
+      <div class="result-actions">
+        <button class="btn-action" onclick="cp()">КОПИРОВАТЬ</button>
+        <button class="btn-action" onclick="dl()">СКАЧАТЬ .TXT</button>
+      </div>
     </div>
     <div class="result-body" id="resultBody"></div>
   </div>
- 
   <div class="bottom-bar">
     <span class="bottom-label">AITUNNEL.RU · OPENAI</span>
     <span class="bottom-label" id="wordCount"></span>
   </div>
- 
 </div>
 <script>
-const CHUNK = 8 * 1024 * 1024;
+// GPT-4o transcribe принимает файлы целиком (не более 25 МБ)
+// Whisper режем по 8 МБ
+const CHUNK_WHISPER = 8 * 1024 * 1024;
+const MAX_WHOLE = 25 * 1024 * 1024;
 const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
 let file = null, waveTimer = null, animFrame = null, isRunning = false;
 let currentModel = 'whisper-1';
  
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('aitunnel_key');
-  if (saved) {
-    document.getElementById('apiKey').value = saved;
-    document.getElementById('savedBadge').classList.add('visible');
-  }
+  if (saved) { document.getElementById('apiKey').value = saved; document.getElementById('savedBadge').classList.add('visible'); }
   const savedModel = localStorage.getItem('transcribe_model');
   if (savedModel) {
     currentModel = savedModel;
-    document.querySelectorAll('.pill').forEach(p => {
-      p.classList.toggle('active', p.dataset.model === savedModel);
-    });
+    document.querySelectorAll('.pill').forEach(p => p.classList.toggle('active', p.dataset.model === savedModel));
   }
-  buildWave();
-  updateBtn();
+  buildWave(); updateBtn();
 });
  
 function setModel(btn) {
@@ -287,41 +176,38 @@ function setModel(btn) {
   localStorage.setItem('transcribe_model', currentModel);
   document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
+  updateChunkInfo();
+}
+ 
+function updateChunkInfo() {
+  if (!file) return;
+  const isWhisper = currentModel === 'whisper-1';
+  const chunks = isWhisper ? Math.ceil(file.size / CHUNK_WHISPER) : 1;
+  document.getElementById('metaChunks').textContent = chunks > 1 ? chunks + ' ЧСТ' : '1 ЧСТ';
 }
  
 function onKeyInput() {
   const k = document.getElementById('apiKey').value.trim();
-  if (k.length > 20) {
-    localStorage.setItem('aitunnel_key', k);
-    document.getElementById('savedBadge').classList.add('visible');
-  } else {
-    localStorage.removeItem('aitunnel_key');
-    document.getElementById('savedBadge').classList.remove('visible');
-  }
+  if (k.length > 20) { localStorage.setItem('aitunnel_key', k); document.getElementById('savedBadge').classList.add('visible'); }
+  else { localStorage.removeItem('aitunnel_key'); document.getElementById('savedBadge').classList.remove('visible'); }
   updateBtn();
 }
  
-/* ---- АНИМАЦИЯ ---- */
 function startAnim(processing) {
   const canvas = document.getElementById('animCanvas');
   const drop = document.getElementById('dropArea');
   const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth;
-  canvas.height = canvas.offsetHeight;
-  canvas.classList.add('visible');
-  drop.classList.add('animating');
+  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+  canvas.classList.add('visible'); drop.classList.add('animating');
   let t = 0;
- 
   function draw() {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    const numWaves = processing ? 6 : 4;
-    for (let l = 0; l < numWaves; l++) {
-      const phase = (l / numWaves) * Math.PI * 2;
+    const n = processing ? 6 : 4;
+    for (let l = 0; l < n; l++) {
+      const phase = (l / n) * Math.PI * 2;
       const speed = processing ? 0.022 + l * 0.004 : 0.008 + l * 0.002;
-      const amp = processing
-        ? H * (0.18 + l * 0.04) * (0.5 + 0.5 * Math.sin(t * 0.01 + l))
-        : H * (0.08 + l * 0.02);
+      const amp = processing ? H * (0.18 + l * 0.04) * (0.5 + 0.5 * Math.sin(t * 0.01 + l)) : H * (0.08 + l * 0.02);
       const freq = 0.008 + l * 0.003;
       const alpha = processing ? 0.18 - l * 0.02 : 0.08 - l * 0.012;
       ctx.beginPath();
@@ -329,24 +215,19 @@ function startAnim(processing) {
       ctx.globalAlpha = Math.max(0.02, alpha);
       ctx.lineWidth = processing ? 1.8 - l * 0.15 : 1.2 - l * 0.1;
       for (let x = 0; x <= W; x += 1.5) {
-        const y = H / 2
-          + Math.sin(x * freq + t * speed * 60 + phase) * amp
-          + Math.sin(x * freq * 2.3 + t * speed * 35 + phase * 1.4) * amp * 0.35
-          + Math.sin(x * freq * 0.5 + t * speed * 15) * amp * 0.25;
+        const y = H / 2 + Math.sin(x * freq + t * speed * 60 + phase) * amp + Math.sin(x * freq * 2.3 + t * speed * 35 + phase * 1.4) * amp * 0.35 + Math.sin(x * freq * 0.5 + t * speed * 15) * amp * 0.25;
         x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
-    ctx.globalAlpha = 1;
-    t++;
+    ctx.globalAlpha = 1; t++;
     animFrame = requestAnimationFrame(draw);
   }
   draw();
 }
  
 function stopAnim() {
-  cancelAnimationFrame(animFrame);
-  animFrame = null;
+  cancelAnimationFrame(animFrame); animFrame = null;
   const canvas = document.getElementById('animCanvas');
   document.getElementById('dropArea').classList.remove('animating');
   canvas.classList.remove('visible');
@@ -354,38 +235,27 @@ function stopAnim() {
   if (canvas.width) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
  
-/* ---- WAVEFORM ---- */
 function buildWave() {
-  const c = document.getElementById('waveBars');
-  c.innerHTML = '';
-  for (let i = 0; i < 64; i++) {
-    const b = document.createElement('div');
-    b.className = 'bar';
-    c.appendChild(b);
-  }
+  const c = document.getElementById('waveBars'); c.innerHTML = '';
+  for (let i = 0; i < 64; i++) { const b = document.createElement('div'); b.className = 'bar'; c.appendChild(b); }
 }
  
 function animWave(on) {
   clearInterval(waveTimer);
   const bars = document.querySelectorAll('.bar');
   if (!on) { bars.forEach(b => b.style.height = '8%'); return; }
-  waveTimer = setInterval(() => {
-    bars.forEach(b => { b.style.height = (Math.random() * 72 + 8) + '%'; });
-  }, 110);
+  waveTimer = setInterval(() => { bars.forEach(b => { b.style.height = (Math.random() * 72 + 8) + '%'; }); }, 110);
 }
  
 function ev(e, on) { e.preventDefault(); document.getElementById('dropArea').classList.toggle('over', !!on); }
-function dr(e) {
-  e.preventDefault();
-  document.getElementById('dropArea').classList.remove('over');
-  if (e.dataTransfer.files[0]) setF(e.dataTransfer.files[0]);
-}
+function dr(e) { e.preventDefault(); document.getElementById('dropArea').classList.remove('over'); if (e.dataTransfer.files[0]) setF(e.dataTransfer.files[0]); }
  
 function setF(f) {
   if (!f) return;
   file = f;
   const mb = (f.size / 1024 / 1024).toFixed(1);
-  const chunks = Math.ceil(f.size / CHUNK);
+  const isWhisper = currentModel === 'whisper-1';
+  const chunks = isWhisper ? Math.ceil(f.size / CHUNK_WHISPER) : 1;
   document.getElementById('dropBig').textContent = f.name.length > 24 ? f.name.slice(0, 22) + '…' : f.name;
   document.getElementById('dropSub').textContent = '';
   document.getElementById('dropArea').classList.add('has-file');
@@ -394,36 +264,28 @@ function setF(f) {
   document.getElementById('metaStatus').textContent = 'ГОТОВ';
   document.getElementById('topStatus').textContent = 'ФАЙЛ ЗАГРУЖЕН';
   document.getElementById('topStatus').classList.remove('processing');
-  stopAnim();
-  startAnim(false);
-  animWave(true);
-  updateBtn();
+  stopAnim(); startAnim(false); animWave(true); updateBtn();
 }
  
 function updateBtn() {
   const k = document.getElementById('apiKey').value.trim();
   const ready = !!(file && k.length > 20) && !isRunning;
-  const go = document.getElementById('goBtn');
-  const rst = document.getElementById('resetBtn');
-  go.className = isRunning ? 'running' : (ready ? 'active' : '');
-  rst.className = (file && !isRunning) ? 'ready' : '';
+  document.getElementById('goBtn').className = isRunning ? 'running' : (ready ? 'active' : '');
+  document.getElementById('resetBtn').className = (file && !isRunning) ? 'ready' : '';
 }
  
 function showErr(msg) { const e = document.getElementById('errStrip'); e.textContent = 'ERR · ' + msg; e.style.display = 'block'; }
 function hideErr() { document.getElementById('errStrip').style.display = 'none'; }
  
 async function transcribeChunk(blob, key, lang, idx) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const mime = blob.type || ('audio/' + (ext === 'mp3' ? 'mpeg' : ext));
   const form = new FormData();
-  form.append('file', new File([blob], 'chunk' + idx + '.webm', { type: blob.type || 'audio/webm' }));
+  form.append('file', new File([blob], 'audio.' + ext, { type: mime }));
   form.append('model', currentModel);
   form.append('response_format', 'text');
   if (lang) form.append('language', lang);
- 
-  const res = await fetch(BASE_URL, {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + key },
-    body: form
-  });
+  const res = await fetch(BASE_URL, { method: 'POST', headers: { 'Authorization': 'Bearer ' + key }, body: form });
   if (!res.ok) {
     let msg = 'Ошибка ' + res.status;
     try { const e = await res.json(); msg = e.error?.message || msg; } catch(e) {}
@@ -435,80 +297,83 @@ async function transcribeChunk(blob, key, lang, idx) {
 async function go() {
   const k = document.getElementById('apiKey').value.trim();
   if (!file || k.length < 20 || isRunning) return;
- 
-  isRunning = true;
-  updateBtn();
-  hideErr();
+  isRunning = true; updateBtn(); hideErr();
   document.getElementById('resultWrap').style.display = 'none';
   document.getElementById('wordCount').textContent = '';
   document.getElementById('progRow').style.display = 'block';
   document.getElementById('topStatus').textContent = 'ОБРАБОТКА';
   document.getElementById('topStatus').classList.add('processing');
- 
-  stopAnim();
-  startAnim(true);
-  animWave(true);
+  stopAnim(); startAnim(true); animWave(true);
  
   const lang = document.getElementById('lang').value;
-  const total = Math.ceil(file.size / CHUNK);
+  const isWhisper = currentModel === 'whisper-1';
+ 
+  // GPT-4o модели не поддерживают нарезку — отправляем целиком
+  // Whisper — режем по 8 МБ
+  let chunks = [];
+  if (isWhisper) {
+    const total = Math.ceil(file.size / CHUNK_WHISPER);
+    for (let i = 0; i < total; i++) chunks.push(file.slice(i * CHUNK_WHISPER, (i + 1) * CHUNK_WHISPER));
+  } else {
+    chunks = [file]; // целиком
+  }
+ 
   const results = [];
- 
   try {
-    for (let i = 0; i < total; i++) {
-      const blob = file.slice(i * CHUNK, (i + 1) * CHUNK);
-      document.getElementById('progFill').style.width = Math.round((i / total) * 90) + '%';
-      document.getElementById('progLabel').textContent = total > 1 ? 'НАРЕЗКА И ОТПРАВКА' : 'ОБРАБАТЫВАЕМ';
-      document.getElementById('chunkInfo').textContent = total > 1 ? 'ЧАСТЬ ' + (i + 1) + ' ИЗ ' + total : '';
-      document.getElementById('metaStatus').textContent = (i + 1) + '/' + total;
-      results.push((await transcribeChunk(blob, k, lang, i)).trim());
+    for (let i = 0; i < chunks.length; i++) {
+      document.getElementById('progFill').style.width = Math.round((i / chunks.length) * 90) + '%';
+      document.getElementById('progLabel').textContent = chunks.length > 1 ? 'ОБРАБАТЫВАЕМ ЧАСТИ' : 'ОБРАБАТЫВАЕМ';
+      document.getElementById('chunkInfo').textContent = chunks.length > 1 ? 'ЧАСТЬ ' + (i + 1) + ' ИЗ ' + chunks.length : '';
+      document.getElementById('metaStatus').textContent = chunks.length > 1 ? (i + 1) + '/' + chunks.length : '...';
+      results.push((await transcribeChunk(chunks[i], k, lang, i)).trim());
     }
- 
     document.getElementById('progFill').style.width = '100%';
     document.getElementById('progLabel').textContent = 'ГОТОВО';
     document.getElementById('chunkInfo').textContent = '';
- 
     const full = results.join('\n\n');
     document.getElementById('resultBody').textContent = full;
     document.getElementById('resultWrap').style.display = 'block';
- 
     const modelName = document.querySelector('.pill.active').textContent;
     document.getElementById('resultTag').textContent = 'РЕЗУЛЬТАТ · ' + modelName.toUpperCase();
- 
     const words = full.split(/\s+/).filter(Boolean).length;
     document.getElementById('wordCount').textContent = words + ' СЛ · ' + full.length + ' СИМ';
     document.getElementById('topStatus').textContent = 'ГОТОВО';
     document.getElementById('topStatus').classList.remove('processing');
     document.getElementById('metaStatus').textContent = 'DONE';
-    stopAnim();
-    animWave(false);
+    stopAnim(); animWave(false);
   } catch (e) {
     document.getElementById('progRow').style.display = 'none';
     showErr(e.message);
     document.getElementById('topStatus').textContent = 'ОШИБКА';
     document.getElementById('topStatus').classList.remove('processing');
     document.getElementById('metaStatus').textContent = 'ERR';
-    stopAnim();
-    animWave(false);
+    stopAnim(); animWave(false);
   } finally {
-    isRunning = false;
-    updateBtn();
+    isRunning = false; updateBtn();
   }
 }
  
 function cp() {
   navigator.clipboard.writeText(document.getElementById('resultBody').textContent).then(() => {
-    const b = document.querySelector('.btn-copy');
-    b.textContent = 'СКОПИРОВАНО';
+    const b = event.target; b.textContent = 'СКОПИРОВАНО';
     setTimeout(() => b.textContent = 'КОПИРОВАТЬ', 1500);
   });
 }
  
+function dl() {
+  const text = document.getElementById('resultBody').textContent;
+  const fname = (file ? file.name.replace(/\.[^.]+$/, '') : 'transcription') + '.txt';
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+ 
 function reset() {
   if (!file || isRunning) return;
-  file = null;
-  clearInterval(waveTimer);
-  stopAnim();
-  animWave(false);
+  file = null; clearInterval(waveTimer); stopAnim(); animWave(false);
   document.getElementById('dropBig').textContent = 'ЗАГРУЗИТЬ ФАЙЛ';
   document.getElementById('dropSub').textContent = 'MP3 · MP4 · WAV · M4A · OGG · WEBM · любой размер';
   document.getElementById('dropArea').classList.remove('has-file', 'over');
@@ -522,10 +387,8 @@ function reset() {
   document.getElementById('wordCount').textContent = '';
   document.getElementById('progFill').style.width = '0%';
   document.getElementById('fi').value = '';
-  hideErr();
-  updateBtn();
+  hideErr(); updateBtn();
 }
 </script>
 </body>
 </html>
- 
