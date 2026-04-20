@@ -294,30 +294,45 @@ async function transcribeChunk(blob, key, lang, idx, srcFile) {
   const d = await res.json(); return d.text || '';
 }
  
-async function convertToWav(inputFile) {
+async function convertToMp3(inputFile) {
   const NEEDS = ['webm','ogg','oga','opus'];
   const ext = inputFile.name.split('.').pop().toLowerCase();
   if (!NEEDS.includes(ext)) return inputFile;
-  document.getElementById('progLabel').textContent = 'КОНВЕРТИРУЕМ В WAV';
+ 
+  document.getElementById('progLabel').textContent = 'КОНВЕРТИРУЕМ В MP3';
+ 
+  // Декодируем аудио через Web Audio API
   const arrayBuf = await inputFile.arrayBuffer();
   const audioCtx = new AudioContext({ sampleRate: 16000 });
   const decoded = await audioCtx.decodeAudioData(arrayBuf);
   await audioCtx.close();
-  const numCh = decoded.numberOfChannels, numS = decoded.length, sr = decoded.sampleRate;
-  const buf = new ArrayBuffer(44 + numS * numCh * 2);
-  const v = new DataView(buf);
-  const ws = (o,s) => { for(let i=0;i<s.length;i++) v.setUint8(o+i,s.charCodeAt(i)); };
-  const wi = (o,n,b) => { for(let i=0;i<b;i++){v.setUint8(o+i,n&0xff);n>>=8;} };
-  ws(0,'RIFF'); wi(4,36+numS*numCh*2,4); ws(8,'WAVE'); ws(12,'fmt ');
-  wi(16,16,4); wi(20,1,2); wi(22,numCh,2); wi(24,sr,4); wi(28,sr*numCh*2,4);
-  wi(32,numCh*2,2); wi(34,16,2); ws(36,'data'); wi(40,numS*numCh*2,4);
-  let off=44;
-  for(let i=0;i<numS;i++) for(let ch=0;ch<numCh;ch++){
-    const s=Math.max(-1,Math.min(1,decoded.getChannelData(ch)[i]));
-    v.setInt16(off,s<0?s*0x8000:s*0x7fff,true); off+=2;
+ 
+  // Получаем моно-канал
+  const samples = decoded.getChannelData(0);
+  const sampleRate = decoded.sampleRate;
+ 
+  // Конвертируем float32 → int16
+  const int16 = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
-  const name = inputFile.name.replace(/\.[^.]+$/,'')+'.wav';
-  return new File([buf], name, { type: 'audio/wav' });
+ 
+  // Кодируем в MP3 через lamejs
+  const mp3enc = new lamejs.Mp3Encoder(1, sampleRate, 64);
+  const mp3Data = [];
+  const blockSize = 1152;
+  for (let i = 0; i < int16.length; i += blockSize) {
+    const chunk = int16.subarray(i, i + blockSize);
+    const encoded = mp3enc.encodeBuffer(chunk);
+    if (encoded.length > 0) mp3Data.push(new Int8Array(encoded));
+  }
+  const final = mp3enc.flush();
+  if (final.length > 0) mp3Data.push(new Int8Array(final));
+ 
+  const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+  const name = inputFile.name.replace(/\.[^.]+$/, '') + '.mp3';
+  return new File([blob], name, { type: 'audio/mpeg' });
 }
  
 async function go() {
@@ -336,7 +351,7 @@ async function go() {
  
   let workFile = file;
   try {
-    workFile = await convertToWav(file);
+    workFile = await convertToMp3(file);
     if (workFile !== file) {
       document.getElementById('metaSize').textContent = (workFile.size/1024/1024).toFixed(1)+' МБ (WAV)';
     }
@@ -422,5 +437,6 @@ function reset() {
   hideErr(); updateBtn();
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 </body>
 </html>
