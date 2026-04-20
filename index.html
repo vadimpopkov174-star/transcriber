@@ -156,7 +156,7 @@ const MAX_WHOLE = 25 * 1024 * 1024;
 const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
 let file = null, waveTimer = null, animFrame = null, isRunning = false;
 let currentModel = 'whisper-1';
- 
+
 window.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('aitunnel_key');
   if (saved) { document.getElementById('apiKey').value = saved; document.getElementById('savedBadge').classList.add('visible'); }
@@ -167,7 +167,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   buildWave(); updateBtn();
 });
- 
+
 function setModel(btn) {
   currentModel = btn.dataset.model;
   localStorage.setItem('transcribe_model', currentModel);
@@ -175,21 +175,21 @@ function setModel(btn) {
   btn.classList.add('active');
   updateChunkInfo();
 }
- 
+
 function updateChunkInfo() {
   if (!file) return;
   const isWhisper = currentModel === 'whisper-1';
   const chunks = isWhisper ? Math.ceil(file.size / CHUNK_WHISPER) : 1;
   document.getElementById('metaChunks').textContent = chunks > 1 ? chunks + ' ЧСТ' : '1 ЧСТ';
 }
- 
+
 function onKeyInput() {
   const k = document.getElementById('apiKey').value.trim();
   if (k.length > 20) { localStorage.setItem('aitunnel_key', k); document.getElementById('savedBadge').classList.add('visible'); }
   else { localStorage.removeItem('aitunnel_key'); document.getElementById('savedBadge').classList.remove('visible'); }
   updateBtn();
 }
- 
+
 function startAnim(processing) {
   const canvas = document.getElementById('animCanvas');
   const drop = document.getElementById('dropArea');
@@ -222,7 +222,7 @@ function startAnim(processing) {
   }
   draw();
 }
- 
+
 function stopAnim() {
   cancelAnimationFrame(animFrame); animFrame = null;
   const canvas = document.getElementById('animCanvas');
@@ -231,22 +231,22 @@ function stopAnim() {
   const ctx = canvas.getContext('2d');
   if (canvas.width) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
- 
+
 function buildWave() {
   const c = document.getElementById('waveBars'); c.innerHTML = '';
   for (let i = 0; i < 64; i++) { const b = document.createElement('div'); b.className = 'bar'; c.appendChild(b); }
 }
- 
+
 function animWave(on) {
   clearInterval(waveTimer);
   const bars = document.querySelectorAll('.bar');
   if (!on) { bars.forEach(b => b.style.height = '8%'); return; }
   waveTimer = setInterval(() => { bars.forEach(b => { b.style.height = (Math.random() * 72 + 8) + '%'; }); }, 110);
 }
- 
+
 function ev(e, on) { e.preventDefault(); document.getElementById('dropArea').classList.toggle('over', !!on); }
 function dr(e) { e.preventDefault(); document.getElementById('dropArea').classList.remove('over'); if (e.dataTransfer.files[0]) setF(e.dataTransfer.files[0]); }
- 
+
 function setF(f) {
   if (!f) return;
   file = f;
@@ -263,21 +263,20 @@ function setF(f) {
   document.getElementById('topStatus').classList.remove('processing');
   stopAnim(); startAnim(false); animWave(true); updateBtn();
 }
- 
+
 function updateBtn() {
   const k = document.getElementById('apiKey').value.trim();
   const ready = !!(file && k.length > 20) && !isRunning;
   document.getElementById('goBtn').className = isRunning ? 'running' : (ready ? 'active' : '');
   document.getElementById('resetBtn').className = (file && !isRunning) ? 'ready' : '';
 }
- 
+
 function showErr(msg) { const e = document.getElementById('errStrip'); e.textContent = 'ERR · ' + msg; e.style.display = 'block'; }
 function hideErr() { document.getElementById('errStrip').style.display = 'none'; }
- 
-async function transcribeChunk(blob, key, lang, idx, srcFile) {
-  srcFile = srcFile || file;
-  const ext = srcFile.name.split('.').pop().toLowerCase();
-  const mime = blob.type || ('audio/' + (ext === 'mp3' ? 'mpeg' : ext));
+
+async function transcribeChunk(blob, key, lang, idx, ext, mime) {
+  ext = ext || file.name.split('.').pop().toLowerCase();
+  mime = mime || blob.type || ('audio/' + (ext === 'mp3' ? 'mpeg' : ext));
   const form = new FormData();
   form.append('file', new File([blob], 'audio.' + ext, { type: mime }));
   form.append('model', currentModel);
@@ -293,48 +292,59 @@ async function transcribeChunk(blob, key, lang, idx, srcFile) {
   if (isW) return await res.text();
   const d = await res.json(); return d.text || '';
 }
- 
-async function convertToMp3(inputFile) {
-  const NEEDS = ['webm','ogg','oga','opus'];
+
+// Декодирует аудио и возвращает массив WAV-блобов нужной длины
+async function decodeAndSplit(inputFile) {
+  const NEEDS = ['webm','ogg','oga','opus','mp4','m4a'];
   const ext = inputFile.name.split('.').pop().toLowerCase();
-  if (!NEEDS.includes(ext)) return inputFile;
- 
-  document.getElementById('progLabel').textContent = 'КОНВЕРТИРУЕМ В MP3';
- 
-  // Декодируем аудио через Web Audio API
+  const needsDecode = NEEDS.includes(ext);
+
+  if (!needsDecode) {
+    // mp3 — просто режем по байтам как раньше
+    const chunks = [];
+    const CHUNK = 8 * 1024 * 1024;
+    for (let i = 0; i < inputFile.size; i += CHUNK)
+      chunks.push(inputFile.slice(i, i + CHUNK));
+    return { chunks, ext: 'mp3', mime: 'audio/mpeg' };
+  }
+
+  document.getElementById('progLabel').textContent = 'ДЕКОДИРУЕМ АУДИО';
+
   const arrayBuf = await inputFile.arrayBuffer();
-  const audioCtx = new AudioContext({ sampleRate: 16000 });
+  const audioCtx = new AudioContext();
   const decoded = await audioCtx.decodeAudioData(arrayBuf);
   await audioCtx.close();
- 
-  // Получаем моно-канал
-  const samples = decoded.getChannelData(0);
-  const sampleRate = decoded.sampleRate;
- 
-  // Конвертируем float32 → int16
-  const int16 = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+
+  const sr = decoded.sampleRate;
+  const SEG_SECS = 600; // 10 минут на чанк
+  const SEG_SAMPLES = SEG_SECS * sr;
+  const total = decoded.length;
+  const numCh = Math.min(decoded.numberOfChannels, 1); // моно
+  const chunks = [];
+
+  for (let start = 0; start < total; start += SEG_SAMPLES) {
+    const end = Math.min(start + SEG_SAMPLES, total);
+    const len = end - start;
+    const wavBuf = new ArrayBuffer(44 + len * numCh * 2);
+    const v = new DataView(wavBuf);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    const wi = (o, n, b) => { for (let i = 0; i < b; i++) { v.setUint8(o + i, n & 0xff); n >>= 8; } };
+    ws(0, 'RIFF'); wi(4, 36 + len * numCh * 2, 4); ws(8, 'WAVE');
+    ws(12, 'fmt '); wi(16, 16, 4); wi(20, 1, 2); wi(22, numCh, 2);
+    wi(24, sr, 4); wi(28, sr * numCh * 2, 4); wi(32, numCh * 2, 2); wi(34, 16, 2);
+    ws(36, 'data'); wi(40, len * numCh * 2, 4);
+    let off = 44;
+    const ch0 = decoded.getChannelData(0);
+    for (let i = start; i < end; i++) {
+      const s = Math.max(-1, Math.min(1, ch0[i]));
+      v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
+    }
+    chunks.push(new Blob([wavBuf], { type: 'audio/wav' }));
   }
- 
-  // Кодируем в MP3 через lamejs
-  const mp3enc = new lamejs.Mp3Encoder(1, sampleRate, 64);
-  const mp3Data = [];
-  const blockSize = 1152;
-  for (let i = 0; i < int16.length; i += blockSize) {
-    const chunk = int16.subarray(i, i + blockSize);
-    const encoded = mp3enc.encodeBuffer(chunk);
-    if (encoded.length > 0) mp3Data.push(new Int8Array(encoded));
-  }
-  const final = mp3enc.flush();
-  if (final.length > 0) mp3Data.push(new Int8Array(final));
- 
-  const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
-  const name = inputFile.name.replace(/\.[^.]+$/, '') + '.mp3';
-  return new File([blob], name, { type: 'audio/mpeg' });
+
+  return { chunks, ext: 'wav', mime: 'audio/wav' };
 }
- 
+
 async function go() {
   const k = document.getElementById('apiKey').value.trim();
   if (!file || k.length < 20 || isRunning) return;
@@ -345,26 +355,27 @@ async function go() {
   document.getElementById('topStatus').textContent = 'ОБРАБОТКА';
   document.getElementById('topStatus').classList.add('processing');
   stopAnim(); startAnim(true); animWave(true);
- 
+
   const lang = document.getElementById('lang').value;
   const isWhisper = currentModel === 'whisper-1';
- 
-  let workFile = file;
-  try {
-    workFile = await convertToMp3(file);
-    if (workFile !== file) {
-      document.getElementById('metaSize').textContent = (workFile.size/1024/1024).toFixed(1)+' МБ (WAV)';
-    }
-  } catch(e) { workFile = file; }
- 
-  let chunks = [];
+
+  let chunks = [], chunkExt = 'mp3', chunkMime = 'audio/mpeg';
   if (isWhisper) {
-    const total = Math.ceil(workFile.size / CHUNK_WHISPER);
-    for (let i = 0; i < total; i++) chunks.push(workFile.slice(i * CHUNK_WHISPER, (i + 1) * CHUNK_WHISPER));
+    document.getElementById('progLabel').textContent = 'ПОДГОТОВКА';
+    try {
+      const result = await decodeAndSplit(file);
+      chunks = result.chunks;
+      chunkExt = result.ext;
+      chunkMime = result.mime;
+      document.getElementById('metaChunks').textContent = chunks.length + ' ЧСТ';
+    } catch(e) {
+      // fallback — отправляем как есть
+      chunks = [file];
+    }
   } else {
-    chunks = [workFile];
+    chunks = [file];
   }
- 
+
   const results = [];
   try {
     for (let i = 0; i < chunks.length; i++) {
@@ -372,7 +383,7 @@ async function go() {
       document.getElementById('progLabel').textContent = chunks.length > 1 ? 'ОБРАБАТЫВАЕМ ЧАСТИ' : 'ОБРАБАТЫВАЕМ';
       document.getElementById('chunkInfo').textContent = chunks.length > 1 ? 'ЧАСТЬ ' + (i + 1) + ' ИЗ ' + chunks.length : '';
       document.getElementById('metaStatus').textContent = chunks.length > 1 ? (i + 1) + '/' + chunks.length : '...';
-      results.push((await transcribeChunk(chunks[i], k, lang, i, workFile)).trim());
+      results.push((await transcribeChunk(chunks[i], k, lang, i, chunkExt, chunkMime)).trim());
     }
     document.getElementById('progFill').style.width = '100%';
     document.getElementById('progLabel').textContent = 'ГОТОВО';
@@ -399,14 +410,14 @@ async function go() {
     isRunning = false; updateBtn();
   }
 }
- 
+
 function cp() {
   navigator.clipboard.writeText(document.getElementById('resultBody').textContent).then(() => {
     const b = event.target; b.textContent = 'СКОПИРОВАНО';
     setTimeout(() => b.textContent = 'КОПИРОВАТЬ', 1500);
   });
 }
- 
+
 function dl() {
   const text = document.getElementById('resultBody').textContent;
   const fname = (file ? file.name.replace(/\.[^.]+$/, '') : 'transcription') + '.txt';
@@ -417,7 +428,7 @@ function dl() {
   a.click();
   URL.revokeObjectURL(a.href);
 }
- 
+
 function reset() {
   if (!file || isRunning) return;
   file = null; clearInterval(waveTimer); stopAnim(); animWave(false);
@@ -437,6 +448,5 @@ function reset() {
   hideErr(); updateBtn();
 }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js"></script>
 </body>
 </html>
