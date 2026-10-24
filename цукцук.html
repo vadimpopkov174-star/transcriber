@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Transcribe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // тема ставится до отрисовки, чтобы не мигало
+  (function(){
+    var t = null;
+    try { t = localStorage.getItem('transcribe_theme'); } catch(e) {}
+    if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #09090b;
+    --muted: #71717a;
+    --card: #ffffff;
+    --border: #e4e4e7;
+    --secondary: #f4f4f5;
+    --secondary-hover: #e9e9ec;
+    --primary: #18181b;
+    --primary-fg: #fafafa;
+    --ring: rgba(24,24,27,.18);
+    --destructive: #dc2626;
+    --destructive-bg: #fef2f2;
+    --success: #16a34a;
+    --radius: 12px;
+  }
+  :root[data-theme="dark"] {
+    --bg: #09090b;
+    --fg: #fafafa;
+    --muted: #a1a1aa;
+    --card: #0f0f11;
+    --border: #27272a;
+    --secondary: #1c1c1f;
+    --secondary-hover: #27272a;
+    --primary: #fafafa;
+    --primary-fg: #18181b;
+    --ring: rgba(250,250,250,.2);
+    --destructive: #f87171;
+    --destructive-bg: #2a1212;
+    --success: #4ade80;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    transition: background .25s, color .25s;
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 8px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 { font-size: 28px; font-weight: 700; letter-spacing: -.04em; }
+  .brand span { font-size: 13px; color: var(--muted); }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); display: grid; place-items: center;
+    transition: background .15s, border-color .15s;
+  }
+  .icon-btn:hover { background: var(--secondary); }
+  .icon-btn svg { width: 18px; height: 18px; }
+  .icon-sun { display: none; }
+  :root[data-theme="dark"] .icon-sun { display: block; }
+  :root[data-theme="dark"] .icon-moon { display: none; }
+
+  /* ---------- card ---------- */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+  .settings { padding: 18px; display: grid; gap: 16px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1.6fr; gap: 16px; }
+  .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .label { font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .badge {
+    font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px;
+    background: var(--secondary); color: var(--success); opacity: 0; transition: opacity .2s;
+  }
+  .badge.on { opacity: 1; }
+  .input {
+    height: 40px; width: 100%; padding: 0 12px; border-radius: 8px;
+    border: 1px solid var(--border); background: transparent; font-size: 14px;
+    transition: border-color .15s, box-shadow .15s; outline: none;
+  }
+  .input:focus { border-color: var(--muted); box-shadow: 0 0 0 3px var(--ring); }
+  .input::placeholder { color: var(--muted); opacity: .6; }
+  .mono { font-family: 'Geist Mono', ui-monospace, monospace; font-size: 13px; }
+  .key-wrap { position: relative; }
+  .key-wrap .input { padding-right: 44px; }
+  .eye {
+    position: absolute; right: 4px; top: 4px; width: 32px; height: 32px; border-radius: 6px;
+    border: none; background: transparent; display: grid; place-items: center; color: var(--muted);
+  }
+  .eye:hover { background: var(--secondary); color: var(--fg); }
+  .eye svg { width: 16px; height: 16px; }
+  .select-wrap { position: relative; }
+  .select-wrap select { appearance: none; -webkit-appearance: none; padding-right: 36px; cursor: pointer; }
+  .select-wrap select option { background: var(--card); color: var(--fg); }
+  .select-wrap svg { position: absolute; right: 12px; top: 12px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+
+  .segmented {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px;
+    height: 40px; border-radius: 8px; background: var(--secondary);
+  }
+  .seg {
+    border: none; background: transparent; border-radius: 6px; font-size: 13px; font-weight: 500;
+    color: var(--muted); transition: background .15s, color .15s, box-shadow .15s; white-space: nowrap;
+  }
+  .seg:hover { color: var(--fg); }
+  .seg.active { background: var(--card); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 0 1px var(--border); }
+
+  /* ---------- stage (анимация + загрузка) ---------- */
+  .stage {
+    position: relative; height: 340px; border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--border); background: var(--bg); cursor: pointer; isolation: isolate;
+  }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; }
+  .stage.fallback { background: radial-gradient(120% 90% at 50% 120%, #e8552a 0%, transparent 60%), var(--bg); }
+  /* затемнение при перетаскивании файла */
+  .stage::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; background: #000;
+    opacity: 0; transition: opacity .25s ease; pointer-events: none;
+  }
+  .stage.over::before { opacity: .3; }
+  .stage-top {
+    position: absolute; top: 14px; left: 14px; right: 18px; z-index: 3;
+    display: flex; justify-content: space-between; align-items: center; gap: 16px; pointer-events: none;
+  }
+  .presets { display: flex; gap: 2px; flex-wrap: wrap; pointer-events: auto; flex-shrink: 0; }
+  .preset:not(.active) { text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); }
+  .preset {
+    padding: 5px 13px; border-radius: 999px; border: none; background: transparent;
+    font-size: 13px; font-weight: 500; letter-spacing: -.01em; color: var(--fg);
+    transition: background .2s, color .2s;
+  }
+  .preset:hover { background: color-mix(in srgb, var(--fg) 10%, transparent); }
+  .preset.active { background: var(--fg); color: var(--bg); }
+
+  /* статус в правом верхнем углу, в одну линию с пресетами */
+  .status {
+    display: none; align-items: center; gap: 8px; height: 27px; min-width: 0;
+    font-size: 13px; font-weight: 500; white-space: nowrap; color: var(--fg);
+    text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg);
+  }
+  .stage.has-file .status { display: flex; }
+  .status-text { overflow: hidden; text-overflow: ellipsis; }
+  .status.bad { color: var(--destructive); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; display: none; flex-shrink: 0; }
+  .stage.running .dot { display: block; animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .timer { font-family: 'Geist Mono', monospace; opacity: .7; display: none; }
+  .stage.running .timer { display: inline; }
+
+  /* надпись по центру */
+  .center {
+    position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center;
+    padding: 56px 24px; text-align: center; pointer-events: none; transition: opacity .25s ease;
+  }
+  .center-text {
+    font-size: clamp(24px, 4.5vw, 36px); font-weight: 600; letter-spacing: -.035em; line-height: 1.1;
+    color: var(--fg); opacity: .5; transition: opacity .25s ease, transform .25s ease;
+  }
+  :root[data-theme="dark"] .center-text { color: #fff; }
+  .stage.has-file .center { opacity: 0; }
+  .stage.over .center { opacity: 1; }
+  .stage.over .center-text { opacity: 1; color: #fff; transform: scale(1.03); }
+
+  .file-chip {
+    position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 3;
+    display: none; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border-radius: 10px;
+    background: color-mix(in srgb, var(--card) 78%, transparent);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent); cursor: default;
+  }
+  .file-chip.on { display: flex; }
+  .file-chip .fname { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-chip .fsize { font-size: 13px; color: var(--muted); font-family: 'Geist Mono', monospace; }
+  .file-chip .fsize.bad { color: var(--destructive); }
+  .chip-x { width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent; display: grid; place-items: center; color: var(--muted); }
+  .chip-x:hover { background: var(--secondary); color: var(--fg); }
+  .chip-x svg { width: 14px; height: 14px; }
+
+  /* ---------- кнопка ---------- */
+  .btn {
+    height: 48px; width: 100%; border-radius: 10px; border: none; font-size: 15px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    transition: opacity .15s, transform .1s, background .15s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-fg); }
+  .btn-primary:hover:not(:disabled) { opacity: .9; }
+  .btn-primary:active:not(:disabled) { transform: scale(.995); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cancel { background: var(--secondary); color: var(--fg); }
+  .btn.cancel:hover { background: var(--secondary-hover); }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hint { font-size: 13px; color: var(--muted); text-align: center; margin-top: -6px; min-height: 18px; }
+
+  /* ---------- ошибка ---------- */
+  .alert {
+    display: none; gap: 10px; padding: 12px 14px; border-radius: 10px; font-size: 14px; line-height: 1.5;
+    border: 1px solid color-mix(in srgb, var(--destructive) 40%, transparent);
+    background: var(--destructive-bg); color: var(--destructive);
+  }
+  .alert.on { display: flex; }
+  .alert svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ---------- результат ---------- */
+  .result { display: none; overflow: hidden; }
+  .result.on { display: block; animation: rise .35s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 12px 18px; border-bottom: 1px solid var(--border); }
+  .result-head h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .result-head p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .result-actions { display: flex; gap: 6px; }
+  .btn-sm {
+    height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card);
+    font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 6px; transition: background .15s;
+  }
+  .btn-sm:hover { background: var(--secondary); }
+  .btn-sm svg { width: 14px; height: 14px; }
+  .result-body { padding: 18px; font-size: 15px; line-height: 1.75; white-space: pre-wrap; max-height: 60vh; overflow-y: auto; }
+
+  footer { text-align: center; font-size: 12px; color: var(--muted); padding-top: 8px; }
+
+  @media (max-width: 600px) {
+    .row2 { grid-template-columns: 1fr; }
+    .stage-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .status { padding-left: 13px; max-width: 100%; }
+    .stage { height: 300px; }
+    .result-head { flex-direction: column; align-items: flex-start; }
+    .btn-sm span { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stage.running .dot { animation: none; }
+    .result.on { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>Transcribe</h1>
+      <span>аудио в текст</span>
+    </div>
+    <button class="icon-btn" id="themeBtn" aria-label="Переключить тему" title="Переключить тему">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    </button>
+  </header>
+
+  <section class="card settings">
+    <div class="field">
+      <label class="label" for="apiKey">API ключ AITUNNEL <span class="badge" id="savedBadge">сохранён</span></label>
+      <div class="key-wrap">
+        <input class="input mono" type="password" id="apiKey" placeholder="sk-aitunnel-..." autocomplete="off" spellcheck="false"/>
+        <button class="eye" id="eyeBtn" type="button" aria-label="Показать ключ">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="label" for="lang">Язык записи</label>
+        <div class="select-wrap">
+          <select class="input" id="lang">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="">Определить сам</option>
+            <option value="uk">Українська</option>
+            <option value="de">Deutsch</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+          </select>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label">Модель</span>
+        <div class="segmented" id="models" role="radiogroup">
+          <button class="seg" data-model="whisper-1" title="Классика, $0.006/мин">Whisper</button>
+          <button class="seg" data-model="gpt-4o-mini-transcribe" title="Вдвое дешевле, $0.003/мин">4o mini</button>
+          <button class="seg" data-model="gpt-4o-transcribe" title="Точнее всех, $0.006/мин">4o</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage" id="stage" tabindex="0" aria-label="Загрузить файл">
+    <canvas id="gl"></canvas>
+    <div class="stage-top">
+      <div class="presets" id="presets">
+        <button class="preset" data-p="Lava">Lava</button>
+        <button class="preset" data-p="Prism">Prism</button>
+        <button class="preset" data-p="Mist">Mist</button>
+      </div>
+      <div class="status" id="status">
+        <span class="dot"></span>
+        <span class="status-text" id="statusText"></span>
+        <span class="timer" id="timer">00:00</span>
+      </div>
+    </div>
+    <div class="center"><div class="center-text" id="centerText">Перетащи запись сюда</div></div>
+    <div class="file-chip" id="chip">
+      <span class="fname" id="chipName"></span>
+      <span class="fsize" id="chipSize"></span>
+      <button class="chip-x" id="chipX" aria-label="Убрать файл">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </section>
+  <input type="file" id="fi" accept="audio/*,video/webm,video/mp4,.webm,.m4a,.mp3,.wav,.ogg,.mp4" hidden>
+
+  <button class="btn btn-primary" id="goBtn" disabled>Транскрибировать</button>
+  <div class="hint" id="hint"></div>
+
+  <div class="alert" id="err" role="alert">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    <span id="errText"></span>
+  </div>
+
+  <section class="card result" id="result">
+    <div class="result-head">
+      <div>
+        <h2>Готово</h2>
+        <p id="resultMeta"></p>
+      </div>
+      <div class="result-actions">
+        <button class="btn-sm" id="copyBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span id="copyLabel">Копировать</span>
+        </button>
+        <button class="btn-sm" id="dlBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span>Скачать .txt</span>
+        </button>
+      </div>
+    </div>
+    <div class="result-body" id="resultBody"></div>
+  </section>
+
+  <footer>через api.aitunnel.ru</footer>
+</main>
+
+<script>
+/* ================= настройки ================= */
+const BASE_URL = 'https://api.aitunnel.ru/v1/audio/transcriptions';
+const MAX_BYTES = 25 * 1024 * 1024;
+const MODELS = ['whisper-1', 'gpt-4o-mini-transcribe', 'gpt-4o-transcribe'];
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+let file = null, isRunning = false, controller = null, timerInt = null;
+let model = MODELS.includes(store.get('transcribe_model')) ? store.get('transcribe_model') : 'whisper-1';
+
+/* ================= тема ================= */
+$('themeBtn').onclick = () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  store.set('transcribe_theme', next);
+  Gradient.syncTheme();
+};
+
+/* ================= ключ ================= */
+const keyInput = $('apiKey');
+const savedKey = store.get('aitunnel_key');
+if (savedKey) { keyInput.value = savedKey; $('savedBadge').classList.add('on'); }
+keyInput.addEventListener('input', () => {
+  const k = keyInput.value.trim();
+  if (k.length > 20) { store.set('aitunnel_key', k); $('savedBadge').classList.add('on'); }
+  else { store.del('aitunnel_key'); $('savedBadge').classList.remove('on'); }
+  updateBtn();
+});
+$('eyeBtn').onclick = () => { keyInput.type = keyInput.type === 'password' ? 'text' : 'password'; };
+
+/* ================= язык ================= */
+const savedLang = store.get('transcribe_lang');
+if (savedLang !== null) $('lang').value = savedLang;
+$('lang').onchange = e => store.set('transcribe_lang', e.target.value);
+
+/* ================= модель ================= */
+function renderModels() {
+  document.querySelectorAll('.seg').forEach(b => {
+    const on = b.dataset.model === model;
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-checked', on);
+  });
+}
+document.querySelectorAll('.seg').forEach(b => b.onclick = () => {
+  if (isRunning) return;
+  model = b.dataset.model; store.set('transcribe_model', model); renderModels();
+});
+renderModels();
+
+/* ================= файл ================= */
+const stage = $('stage');
+stage.addEventListener('click', e => {
+  if (e.target.closest('.preset, .file-chip') || isRunning) return;
+  $('fi').click();
+});
+stage.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && !isRunning) { e.preventDefault(); $('fi').click(); } });
+function setOver(on) {
+  stage.classList.toggle('over', on);
+  $('centerText').textContent = on ? 'Отпусти, чтобы загрузить' : 'Перетащи запись сюда';
+}
+stage.addEventListener('dragover', e => { e.preventDefault(); if (!isRunning && !stage.classList.contains('over')) setOver(true); });
+stage.addEventListener('dragleave', e => { if (!stage.contains(e.relatedTarget)) setOver(false); });
+stage.addEventListener('drop', e => {
+  e.preventDefault(); setOver(false);
+  if (!isRunning && e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
+});
+$('fi').onchange = e => setFile(e.target.files[0]);
+$('chipX').onclick = e => { e.stopPropagation(); if (!isRunning) clearFile(); };
+
+function setStatus(text, bad) {
+  $('statusText').textContent = text;
+  $('status').classList.toggle('bad', !!bad);
+}
+
+function fmtMB(b) { return (b / 1024 / 1024).toFixed(1) + ' МБ'; }
+
+function setFile(f) {
+  if (!f) return;
+  file = f;
+  hideErr();
+  $('result').classList.remove('on');
+  const tooBig = f.size > MAX_BYTES;
+  $('chipName').textContent = f.name;
+  $('chipSize').textContent = fmtMB(f.size);
+  $('chipSize').classList.toggle('bad', tooBig);
+  $('chip').classList.add('on');
+  stage.classList.add('has-file');
+  setStatus(tooBig ? 'Больше 25 МБ' : 'Файл загружен', tooBig);
+  Gradient.setLevel(tooBig ? 0 : 1);
+  updateBtn();
+}
+
+function clearFile() {
+  file = null;
+  $('fi').value = '';
+  $('chip').classList.remove('on');
+  stage.classList.remove('has-file');
+  setStatus('');
+  Gradient.setLevel(0);
+  hideErr();
+  updateBtn();
+}
+
+/* ================= кнопка ================= */
+const goBtn = $('goBtn');
+function updateBtn() {
+  if (isRunning) return;
+  const k = keyInput.value.trim();
+  let hint = '';
+  if (k.length <= 20) hint = 'Вставь API ключ, чтобы начать';
+  else if (!file) hint = 'Добавь файл с записью';
+  else if (file.size > MAX_BYTES) hint = 'Файл больше 25 МБ. Сожми в mp3: битрейт 32, моно';
+  goBtn.disabled = !!hint;
+  goBtn.className = 'btn btn-primary';
+  goBtn.innerHTML = 'Транскрибировать';
+  $('hint').textContent = hint;
+}
+goBtn.onclick = () => isRunning ? cancel() : go();
+
+function showErr(msg) { $('errText').textContent = msg; $('err').classList.add('on'); }
+function hideErr() { $('err').classList.remove('on'); }
+
+/* ================= запрос ================= */
+function mimeFor(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  return ({ mp3: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', flac: 'audio/flac', mpeg: 'audio/mpeg', mpga: 'audio/mpeg' })[ext] || 'application/octet-stream';
+}
+
+async function transcribe(f, key, lang, signal) {
+  const form = new FormData();
+  form.append('file', new File([f], f.name, { type: f.type || mimeFor(f.name) }));
+  form.append('model', model);
+  form.append('response_format', model === 'whisper-1' ? 'text' : 'json');
+  if (lang) form.append('language', lang);
+  const res = await fetch(BASE_URL, { method: 'POST', headers: { 'Authorization': 'Bearer ' + key }, body: form, signal });
+  if (!res.ok) {
+    let msg = 'Ошибка ' + res.status;
+    try { const e = await res.json(); msg = (e.error && e.error.message) || msg; } catch (e) {}
+    if (res.status === 401) msg = 'Ключ не подошёл. Проверь его в кабинете aitunnel';
+    if (res.status === 402) msg = 'На балансе aitunnel закончились деньги';
+    if (res.status === 413) msg = 'Файл слишком большой для API, лимит 25 МБ';
+    throw new Error(msg);
+  }
+  if (model === 'whisper-1') return (await res.text()).trim();
+  const d = await res.json();
+  return (d.text || '').trim();
+}
+
+function startTimer() {
+  const t0 = Date.now();
+  const tick = () => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    $('timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  };
+  tick(); timerInt = setInterval(tick, 1000);
+}
+function stopTimer() { clearInterval(timerInt); }
+
+async function go() {
+  const key = keyInput.value.trim();
+  if (!file || key.length <= 20 || file.size > MAX_BYTES) return;
+  isRunning = true; hideErr();
+  $('result').classList.remove('on');
+  stage.classList.add('running');
+  setStatus('Слушаю запись');
+  goBtn.disabled = false;
+  goBtn.className = 'btn cancel';
+  goBtn.innerHTML = '<span class="spinner"></span>Отменить';
+  $('hint').textContent = '';
+  Gradient.setLevel(2);
+  startTimer();
+  controller = new AbortController();
+
+  try {
+    const text = await transcribe(file, key, $('lang').value, controller.signal);
+    $('resultBody').textContent = text || '(пусто: в записи не нашлось речи)';
+    const words = text.split(/\s+/).filter(Boolean).length;
+    $('resultMeta').textContent = words + ' слов, ' + text.length + ' символов, ' + $('timer').textContent + ' на обработку';
+    $('result').classList.add('on');
+    setStatus('Готово');
+    setTimeout(() => $('result').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      setStatus('Отменено');
+    } else {
+      showErr(e.message === 'Failed to fetch' ? 'Не удалось достучаться до aitunnel. Проверь интернет или VPN' : e.message);
+      setStatus('Не получилось', true);
+    }
+  } finally {
+    isRunning = false; controller = null;
+    stopTimer(); stage.classList.remove('running');
+    Gradient.setLevel(file ? 1 : 0);
+    updateBtn();
+  }
+}
+
+function cancel() { if (controller) controller.abort(); }
+
+/* ================= результат ================= */
+$('copyBtn').onclick = () => {
+  navigator.clipboard.writeText($('resultBody').textContent).then(() => {
+    $('copyLabel').textContent = 'Скопировано';
+    setTimeout(() => $('copyLabel').textContent = 'Копировать', 1500);
+  });
+};
+$('dlBtn').onclick = () => {
+  const name = (file ? file.name.replace(/\.[^.]+$/, '') : 'transcription') + '.txt';
+  const blob = new Blob([$('resultBody').textContent], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
+/* ================= анимированный градиент =================
+   Порт компонента spell.sh/docs/animated-gradient на чистый WebGL2:
+   тот же шейдер, те же пресеты и цвета для светлой и тёмной темы. */
+const Gradient = (() => {
+  const SHAPES = { Checks: 0, Stripes: 1, Edge: 2 };
+  const PRESETS = {
+    Prism:  { color1: '#050505', color2: '#66B3FF', color3: '#FFFFFF', light: ['#FAFAFA', '#66B3FF', '#050505'],
+              rotation: -50, proportion: 1, scale: .01, speed: 30, distortion: 0, swirl: 50, swirlIterations: 16, softness: 47, offset: -299, shape: 'Checks', shapeSize: 45 },
+    Lava:   { color1: '#FF9F21', color2: '#FF0303', color3: '#000000', light: ['#FF9F21', '#FF0303', '#FAFAFA'],
+              rotation: 114, proportion: 100, scale: .52, speed: 30, distortion: 7, swirl: 18, swirlIterations: 20, softness: 100, offset: 717, shape: 'Edge', shapeSize: 12 },
+    Mist:   { color1: '#050505', color2: '#FF66B8', color3: '#050505', light: ['#FAFAFA', '#FF66B8', '#FAFAFA'],
+              rotation: 0, proportion: 33, scale: .48, speed: 39, distortion: 4, swirl: 65, swirlIterations: 5, softness: 100, offset: -235, shape: 'Edge', shapeSize: 48 }
+  };
+  // множитель скорости: 0 — пусто, 1 — файл загружен, 2 — идёт транскрибация
+  const LEVELS = [.6, .8, 1.15];
+
+  const canvas = $('gl');
+  const savedPreset = store.get('transcribe_preset');
+  let preset = PRESETS[savedPreset] ? savedPreset : 'Lava';
+  let level = 0, mult = LEVELS[0], time = 0, last = performance.now();
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function renderPills() {
+    document.querySelectorAll('.preset').forEach(b => b.classList.toggle('active', b.dataset.p === preset));
+  }
+  document.querySelectorAll('.preset').forEach(b => b.onclick = e => {
+    e.stopPropagation(); preset = b.dataset.p; store.set('transcribe_preset', preset); renderPills();
+  });
+  renderPills();
+
+  const gl = canvas.getContext('webgl2', { premultipliedAlpha: true, alpha: true, antialias: true });
+  const noop = { setLevel() {}, syncTheme() {} };
+  if (!gl) { stage.classList.add('fallback'); return noop; }
+
+  const VS = `#version 300 es
+  in vec4 a_position;
+  void main() { gl_Position = a_position; }`;
+
+  const FS = `#version 300 es
+  precision highp float;
+  uniform float u_time; uniform float u_pixelRatio; uniform vec2 u_resolution;
+  uniform float u_scale; uniform float u_rotation;
+  uniform vec4 u_color1; uniform vec4 u_color2; uniform vec4 u_color3;
+  uniform float u_proportion; uniform float u_softness; uniform float u_shape; uniform float u_shapeScale;
+  uniform float u_distortion; uniform float u_swirl; uniform float u_swirlIterations;
+  out vec4 fragColor;
+  #define TWO_PI 6.28318530718
+  #define PI 3.14159265358979323846
+  vec2 rotate(vec2 uv, float th) { return mat2(cos(th), sin(th), -sin(th), cos(th)) * uv; }
+  float random(vec2 st) { return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123); }
+  float noise(vec2 st) {
+    vec2 i = floor(st); vec2 f = fract(st);
+    float a = random(i); float b = random(i + vec2(1.0, 0.0));
+    float c = random(i + vec2(0.0, 1.0)); float d = random(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+  vec4 blend_colors(vec4 c1, vec4 c2, vec4 c3, float mixer, float edgesWidth, float edge_blur) {
+    vec3 color1 = c1.rgb * c1.a; vec3 color2 = c2.rgb * c2.a; vec3 color3 = c3.rgb * c3.a;
+    float r1 = smoothstep(.0 + .35 * edgesWidth, .7 - .35 * edgesWidth + .5 * edge_blur, mixer);
+    float r2 = smoothstep(.3 + .35 * edgesWidth, 1. - .35 * edgesWidth + edge_blur, mixer);
+    vec3 blended_color_2 = mix(color1, color2, r1);
+    float blended_opacity_2 = mix(c1.a, c2.a, r1);
+    vec3 c = mix(blended_color_2, color3, r2);
+    float o = mix(blended_opacity_2, c3.a, r2);
+    return vec4(c, o);
+  }
+  void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float t = .5 * u_time;
+    float noise_scale = .0005 + .006 * u_scale;
+    uv -= .5;
+    uv *= (noise_scale * u_resolution);
+    uv = rotate(uv, u_rotation * .5 * PI);
+    uv /= u_pixelRatio;
+    uv += .5;
+    float n1 = noise(uv * 1. + t);
+    float n2 = noise(uv * 2. - t);
+    float angle = n1 * TWO_PI;
+    uv.x += 4. * u_distortion * n2 * cos(angle);
+    uv.y += 4. * u_distortion * n2 * sin(angle);
+    float iterations_number = ceil(clamp(u_swirlIterations, 1., 30.));
+    for (float i = 1.; i <= iterations_number; i++) {
+      uv.x += clamp(u_swirl, 0., 2.) / i * cos(t + i * 1.5 * uv.y);
+      uv.y += clamp(u_swirl, 0., 2.) / i * cos(t + i * 1. * uv.x);
+    }
+    float proportion = clamp(u_proportion, 0., 1.);
+    float shape = 0.; float mixer = 0.;
+    if (u_shape < .5) {
+      vec2 checks_shape_uv = uv * (.5 + 3.5 * u_shapeScale);
+      shape = .5 + .5 * sin(checks_shape_uv.x) * cos(checks_shape_uv.y);
+      mixer = shape + .48 * sign(proportion - .5) * pow(abs(proportion - .5), .5);
+    } else if (u_shape < 1.5) {
+      vec2 stripes_shape_uv = uv * (.25 + 3. * u_shapeScale);
+      float f = fract(stripes_shape_uv.y);
+      shape = smoothstep(.0, .55, f) * smoothstep(1., .45, f);
+      mixer = shape + .48 * sign(proportion - .5) * pow(abs(proportion - .5), .5);
+    } else {
+      float sh = 1. - uv.y;
+      sh -= .5;
+      sh /= (noise_scale * u_resolution.y);
+      sh += .5;
+      float shape_scaling = .2 * (1. - u_shapeScale);
+      shape = smoothstep(.45 - shape_scaling, .55 + shape_scaling, sh + .3 * (proportion - .5));
+      mixer = shape;
+    }
+    vec4 color_mix = blend_colors(u_color1, u_color2, u_color3, mixer, 1. - clamp(u_softness, 0., 1.), .01 + .01 * u_scale);
+    fragColor = vec4(color_mix.rgb, color_mix.a);
+  }`;
+
+  function compile(type, src) {
+    const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    return sh;
+  }
+  let prog;
+  try {
+    prog = gl.createProgram();
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    gl.useProgram(prog);
+  } catch (e) {
+    console.error(e); stage.classList.add('fallback'); return noop;
+  }
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+  const U = {};
+  ['u_time', 'u_resolution', 'u_pixelRatio', 'u_scale', 'u_rotation', 'u_color1', 'u_color2', 'u_color3',
+   'u_proportion', 'u_softness', 'u_shape', 'u_shapeScale', 'u_distortion', 'u_swirl', 'u_swirlIterations']
+    .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+  const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+  const isLight = () => document.documentElement.getAttribute('data-theme') !== 'dark';
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; gl.viewport(0, 0, w, h); }
+    return dpr;
+  }
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, .1); last = now;
+    mult += (LEVELS[level] - mult) * Math.min(dt * 2, 1);
+    const p = PRESETS[preset];
+    time += dt * (p.speed / 100) * 5 * mult * (reduce ? .15 : 1);
+
+    const dpr = resize();
+    const cols = isLight() ? p.light : [p.color1, p.color2, p.color3];
+    gl.uniform1f(U.u_time, time + p.offset * .01);
+    gl.uniform2f(U.u_resolution, canvas.width, canvas.height);
+    gl.uniform1f(U.u_pixelRatio, dpr);
+    gl.uniform1f(U.u_scale, p.scale);
+    gl.uniform1f(U.u_rotation, p.rotation * Math.PI / 180);
+    gl.uniform4f(U.u_color1, ...rgb(cols[0]), 1);
+    gl.uniform4f(U.u_color2, ...rgb(cols[1]), 1);
+    gl.uniform4f(U.u_color3, ...rgb(cols[2]), 1);
+    gl.uniform1f(U.u_proportion, p.proportion / 100);
+    gl.uniform1f(U.u_softness, p.softness / 100);
+    gl.uniform1f(U.u_shape, SHAPES[p.shape]);
+    gl.uniform1f(U.u_shapeScale, p.shapeSize / 100);
+    gl.uniform1f(U.u_distortion, p.distortion / 50);
+    gl.uniform1f(U.u_swirl, p.swirl / 100);
+    gl.uniform1f(U.u_swirlIterations, p.swirl === 0 ? 0 : p.swirlIterations);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  return { setLevel(l) { level = l; }, syncTheme() {} };
+})();
+
+updateBtn();
+</script>
+</body>
+</html>
